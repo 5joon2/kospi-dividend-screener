@@ -217,6 +217,14 @@ def main() -> None:
         quant_df["market_cap"] = 0
     quant_df["industry"] = quant_df["industry"].fillna("미분류")
 
+    # KRX가 코스피 대형주/중형주/소형주 지수를 나눌 때 쓰는 것과 같은 기준 —
+    # 임의 금액 기준이 아니라 시가총액 순위 1~100/101~300/301~ 로 구분.
+    market_cap_rank = quant_df["market_cap"].rank(ascending=False, method="first")
+    quant_df["규모구분"] = pd.cut(
+        market_cap_rank, bins=[0, 100, 300, len(quant_df)],
+        labels=["대형주(1~100위)", "중형주(101~300위)", "소형주(301위~)"],
+    )
+
     weights = sidebar_weights()
 
     quant_df["is_top30_candidate"] = quant_df["quant_subtotal"].rank(
@@ -245,18 +253,27 @@ def main() -> None:
     df = df.sort_values("weighted_total", ascending=False).reset_index(drop=True)
 
     st.subheader("필터")
-    filter_cols = st.columns(4)
+    filter_cols = st.columns(5)
     with filter_cols[0]:
         industries = st.multiselect("업종", sorted(df["industry"].unique()), placeholder="전체 업종")
     with filter_cols[1]:
-        min_yield = st.number_input("배당수익률 최소(%)", min_value=0.0, value=0.0, step=0.5)
+        size_groups = st.multiselect(
+            "기업 규모", ["대형주(1~100위)", "중형주(101~300위)", "소형주(301위~)"],
+            placeholder="전체 규모",
+            help="KRX가 코스피 대형주/중형주/소형주 지수를 나눌 때 쓰는 것과 같은 기준 — "
+            "시가총액 순위 1~100위/101~300위/301위 이하.",
+        )
     with filter_cols[2]:
-        max_per = st.number_input("PER 최대 (0=제한없음)", min_value=0.0, value=0.0, step=1.0)
+        min_yield = st.number_input("배당수익률 최소(%)", min_value=0.0, value=0.0, step=0.5)
     with filter_cols[3]:
+        max_per = st.number_input("PER 최대 (0=제한없음)", min_value=0.0, value=0.0, step=1.0)
+    with filter_cols[4]:
         max_pbr = st.number_input("PBR 최대 (0=제한없음)", min_value=0.0, value=0.0, step=0.1)
 
     if industries:
         df = df[df["industry"].isin(industries)]
+    if size_groups:
+        df = df[df["규모구분"].isin(size_groups)]
     if min_yield > 0:
         df = df[df["dividend_yield_pct"] >= min_yield]
     if max_per > 0:
@@ -305,6 +322,7 @@ def main() -> None:
         "pbr": "PBR",
         "PBR 상대값 표시": "PBR(업종중앙값 대비)",
         "시가총액 표시": "시가총액",
+        "규모구분": "기업 규모",
         "recent_dividend_record_date": "최근 배당기준일",
         "recent_dividend_pay_date": "배당지급일",
     }
