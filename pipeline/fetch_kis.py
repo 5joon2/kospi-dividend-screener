@@ -127,21 +127,36 @@ class KisClient:
             "market_cap": _to_float(output.get("hts_avls")),
         }
 
-    def dividend_info(self, ticker: str) -> dict:
-        """예탁결제원 배당 정보 — 배당수익률/주당배당금 등.
+    def dividend_schedule(self, ticker: str, from_date: str, to_date: str) -> list[dict]:
+        """예탁원정보(배당일정) — 배당기준일/배당지급일/주당배당금 등.
 
-        tr_id HHKDB669102C0. 종목코드는 6자리, 조회기간(gb1/cts) 파라미터는
-        실제 발급 후 KIS Developers 포털의 "배당일정" 샘플로 재확인 필요.
+        tr_id HHKDB669102C0, 공식 샘플(koreainvestment/open-trading-api) 기준으로
+        HIGH_GB 파라미터가 필수인데 처음엔 빠뜨려서 실패했었음 — 응답은 output1에 담김.
+        가장 최근 항목이 배열 앞쪽에 옴(record_date 내림차순).
         """
         resp = request_with_retry(
             "GET",
             f"{KIS_BASE_URL}/uapi/domestic-stock/v1/ksdinfo/dividend",
             headers=self._headers("HHKDB669102C0"),
-            params={"CTS": "", "GB1": "0", "F_DT": "", "T_DT": "", "SHT_CD": ticker},
+            params={
+                "CTS": "", "GB1": "0", "F_DT": from_date, "T_DT": to_date,
+                "SHT_CD": ticker, "HIGH_GB": "",
+            },
             timeout=10,
         )
         resp.raise_for_status()
-        return resp.json().get("output", [])
+        return resp.json().get("output1", [])
+
+    def latest_dividend_dates(self, ticker: str, from_date: str, to_date: str) -> dict:
+        """가장 최근 배당 건의 배당기준일/배당지급일 (YYYY-MM-DD, 없으면 빈 문자열)."""
+        schedule = self.dividend_schedule(ticker, from_date, to_date)
+        if not schedule:
+            return {"record_date": "", "pay_date": ""}
+        latest = schedule[0]
+        record_date = latest.get("record_date", "")
+        pay_date = latest.get("divi_pay_dt", "").replace("/", "-")
+        record_date = f"{record_date[:4]}-{record_date[4:6]}-{record_date[6:8]}" if record_date else ""
+        return {"record_date": record_date, "pay_date": pay_date}
 
 
 def _to_float(value) -> float | None:

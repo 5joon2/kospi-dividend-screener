@@ -211,6 +211,10 @@ def main() -> None:
             f"{DATA_CSV} 가 없습니다. 먼저 `uv run pipeline/run_pipeline.py --mock`(또는 실데이터 모드)를 실행하세요."
         )
         return
+    # 예전 파이프라인 실행분(배당일정 컬럼 추가 전)과의 호환용 — 없으면 빈 값으로 채움
+    for col in ("recent_dividend_record_date", "recent_dividend_pay_date"):
+        if col not in quant_df.columns:
+            quant_df[col] = ""
 
     weights = sidebar_weights()
 
@@ -244,6 +248,8 @@ def main() -> None:
         "per": "PER",
         "pbr": "PBR",
         "dividend_yield_pct": "배당수익률(%)",
+        "recent_dividend_record_date": "최근 배당기준일",
+        "recent_dividend_pay_date": "배당지급일",
     }
     # LinkColumn과 on_select(행 선택)를 같은 dataframe에 같이 쓰면 링크 렌더링 자체가
     # 깨지는 걸 확인함(2026-08-03, 실사용 중 발견) — 그래서 링크 전용 표 + 배점 상세는

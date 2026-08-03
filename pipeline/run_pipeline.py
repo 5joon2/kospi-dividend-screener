@@ -37,6 +37,7 @@ FIELDNAMES = [
     "score_quarterly_dividend", "score_dividend_increase_years",
     "score_buyback_regular", "score_cancel_ratio", "score_treasury_ratio",
     "quant_subtotal",
+    "recent_dividend_record_date", "recent_dividend_pay_date",  # 채점과 무관한 참고 정보
 ]
 
 # mock 모드용 샘플 (실제 티커/이름이지만 재무 수치는 합성치)
@@ -67,6 +68,28 @@ def generate_mock_quant(ticker: str, name: str) -> QuantInput:
         cancel_ratio_pct=round(rng.uniform(0, 3), 2),
         treasury_ratio_pct=round(rng.uniform(0, 8), 2),
     )
+
+
+def generate_mock_extra(ticker: str) -> dict:
+    return {"recent_dividend_record_date": "", "recent_dividend_pay_date": ""}
+
+
+def fetch_dividend_dates(ticker: str) -> dict:
+    """채점과 무관한 참고 정보 — 가장 최근 배당기준일/배당지급일.
+
+    fetch_live_quant가 이미 만들어둔 KisClient를 재사용(토큰 재발급 안 하게).
+    """
+    from fetch_kis import KisClient
+
+    kis = fetch_live_quant._kis_client
+    if kis is None:
+        kis = fetch_live_quant._kis_client = KisClient()
+    year = _latest_fiscal_year()
+    dates = kis.latest_dividend_dates(ticker, f"{year - 1}0101", f"{year + 1}1231")
+    return {
+        "recent_dividend_record_date": dates["record_date"],
+        "recent_dividend_pay_date": dates["pay_date"],
+    }
 
 
 def load_ticker_list() -> list[tuple[str, str]]:
@@ -174,7 +197,7 @@ fetch_live_quant._corp_map = None
 fetch_live_quant._listed_names = None
 
 
-def _build_row(ticker: str, name: str, quant: QuantInput) -> dict:
+def _build_row(ticker: str, name: str, quant: QuantInput, extra: dict) -> dict:
     breakdown = score_stock(quant, QualInput())  # 정성 항목은 대시보드에서 채움
     return {
         "ticker": ticker,
@@ -198,6 +221,8 @@ def _build_row(ticker: str, name: str, quant: QuantInput) -> dict:
         "score_cancel_ratio": breakdown.items["cancel_ratio"],
         "score_treasury_ratio": breakdown.items["treasury_ratio"],
         "quant_subtotal": breakdown.quant_subtotal,
+        "recent_dividend_record_date": extra.get("recent_dividend_record_date", ""),
+        "recent_dividend_pay_date": extra.get("recent_dividend_pay_date", ""),
     }
 
 
@@ -209,7 +234,12 @@ def _process_universe(
     failures: list[tuple[str, str, str]] = []
     for i, (ticker, name) in enumerate(universe, 1):
         try:
-            quant = generate_mock_quant(ticker, name) if mock else fetch_live_quant(ticker)
+            if mock:
+                quant = generate_mock_quant(ticker, name)
+                extra = generate_mock_extra(ticker)
+            else:
+                quant = fetch_live_quant(ticker)
+                extra = fetch_dividend_dates(ticker)
         except Exception as e:  # noqa: BLE001 — 종목 하나 실패로 전체 배치가 죽지 않게
             failures.append((ticker, name, f"{type(e).__name__}: {e}"))
             print(f"[{label} {i}/{len(universe)}] {ticker} {name} 실패: {type(e).__name__}: {e}", flush=True)
@@ -219,10 +249,11 @@ def _process_universe(
                 f"[{label} {i}/{len(universe)}] {ticker} {name} "
                 f"PER={quant.per} PBR={quant.pbr} 배당수익률={quant.dividend_yield_pct}% "
                 f"분기배당={quant.quarterly_dividend} 연속인상={quant.dividend_increase_years}년 "
-                f"자사주매입={quant.buyback_cancel_regular} 자사주비율={quant.treasury_ratio_pct}%",
+                f"자사주매입={quant.buyback_cancel_regular} 자사주비율={quant.treasury_ratio_pct}% "
+                f"최근배당기준일={extra['recent_dividend_record_date']}",
                 flush=True,
             )
-        rows.append(_build_row(ticker, name, quant))
+        rows.append(_build_row(ticker, name, quant, extra))
     return rows, failures
 
 
