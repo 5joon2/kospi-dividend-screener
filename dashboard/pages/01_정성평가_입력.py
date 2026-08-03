@@ -67,7 +67,7 @@ for _, r in top30.iterrows():
 
 edited = st.data_editor(
     pd.DataFrame(rows),
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
     disabled=["ticker", "종목명"],
     column_config={

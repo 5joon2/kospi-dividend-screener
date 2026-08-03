@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "pipeline"))
@@ -21,7 +22,9 @@ from scoring import (  # noqa: E402
 import db  # noqa: E402
 
 DATA_CSV = Path(__file__).parent.parent / "data" / "scores_quant.csv"
+HISTORY_CSV = Path(__file__).parent.parent / "data" / "score_history.csv"
 TOP_N_FOR_QUAL = 30
+NAVER_STOCK_URL = "https://finance.naver.com/item/main.naver?code={ticker}"
 
 QUANT_ITEMS = {
     "score_per": "PER",
@@ -60,6 +63,44 @@ def load_quant_scores() -> pd.DataFrame:
     return _load_quant_scores_cached(DATA_CSV.stat().st_mtime)
 
 
+@st.cache_data
+def _load_history_cached(_mtime: float) -> pd.DataFrame:
+    df = pd.read_csv(HISTORY_CSV, dtype={"ticker": str})
+    df["ticker"] = df["ticker"].str.zfill(6)
+    return df
+
+
+def load_history() -> pd.DataFrame:
+    if not HISTORY_CSV.exists():
+        return pd.DataFrame()
+    return _load_history_cached(HISTORY_CSV.stat().st_mtime)
+
+
+def render_rank_trend_chart() -> None:
+    history = load_history()
+    if history.empty or history["date"].nunique() < 2:
+        st.caption(
+            "일별 순위 변화 그래프는 데이터가 이틀 이상 쌓여야 표시됩니다 "
+            "(매일 자동 갱신되면서 점점 채워집니다)."
+        )
+        return
+
+    latest_date = history["date"].max()
+    current_top20_tickers = history.loc[history["date"] == latest_date, "ticker"]
+    plot_df = history[history["ticker"].isin(current_top20_tickers)].copy()
+    plot_df["종목"] = plot_df["name"] + " (" + plot_df["ticker"] + ")"
+
+    fig = px.line(
+        plot_df.sort_values("date"),
+        x="date", y="rank", color="종목",
+        markers=True,
+        labels={"date": "날짜", "rank": "순위"},
+    )
+    fig.update_yaxes(autorange="reversed", dtick=1)
+    fig.update_layout(height=520, legend_title_text="", hovermode="closest")
+    st.plotly_chart(fig, width="stretch")
+
+
 def compute_qual_scores(tickers: list[str]) -> pd.DataFrame:
     raw = db.load_all_qual_scores()
     rows = []
@@ -94,10 +135,10 @@ def sidebar_weights() -> dict[str, float]:
     st.sidebar.subheader("가중치 프리셋")
     nickname = st.sidebar.text_input("닉네임", key="preset_nickname")
     col1, col2 = st.sidebar.columns(2)
-    if col1.button("저장", use_container_width=True, disabled=not nickname):
+    if col1.button("저장", width="stretch", disabled=not nickname):
         db.save_preset(nickname, weights)
         st.sidebar.success(f"'{nickname}' 프리셋 저장됨")
-    if col2.button("불러오기", use_container_width=True, disabled=not nickname):
+    if col2.button("불러오기", width="stretch", disabled=not nickname):
         loaded = db.load_preset(nickname)
         if loaded is None:
             st.sidebar.warning("저장된 프리셋이 없습니다")
@@ -136,10 +177,12 @@ def main() -> None:
 
     df = df.sort_values("weighted_total", ascending=False).reset_index(drop=True)
     df.insert(0, "순위", df.index + 1)
+    df["네이버증권"] = df["ticker"].apply(lambda t: NAVER_STOCK_URL.format(ticker=t))
 
     display_cols = {
         "순위": "순위",
         "name": "종목명",
+        "네이버증권": "네이버증권",
         "ticker": "코드",
         "weighted_total": "총점(가중치 반영)",
         "quant_subtotal": "정량 소계",
@@ -150,14 +193,21 @@ def main() -> None:
     }
     st.dataframe(
         df[list(display_cols.keys())].rename(columns=display_cols),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
+        column_config={
+            "네이버증권": st.column_config.LinkColumn(display_text="🔗 보기"),
+        },
     )
 
     st.caption(
         f"총 {len(df)}개 종목 · 정량 데이터 기준 상위 {TOP_N_FOR_QUAL}개 종목만 "
         "'정성평가 입력' 페이지에서 사람이 직접 점수를 넣을 수 있습니다."
     )
+
+    st.divider()
+    st.subheader("일별 TOP 20 순위 변화")
+    render_rank_trend_chart()
 
 
 if __name__ == "__main__":

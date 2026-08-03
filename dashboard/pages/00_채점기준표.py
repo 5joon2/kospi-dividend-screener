@@ -37,9 +37,12 @@ CSS = """
 }
 .badge.quant { background: rgba(59,130,246,0.15); color: #3b82f6; }
 .badge.qual { background: rgba(234,179,8,0.15); color: #b45309; }
+.direction.dir-up { color: #d92b2b; font-weight: 700; }
+.direction.dir-other { color: #1a73e8; font-weight: 700; }
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
+st.caption("국내 증시 표기 관례대로 ▲(높을수록 유리)는 빨간색, 그 외(▼·✅)는 파란색으로 표시했습니다.")
 
 
 def render_section(title: str, rows: list[dict]) -> None:
@@ -48,10 +51,11 @@ def render_section(title: str, rows: list[dict]) -> None:
             '<th style="text-align:left">항목</th><th>방향</th><th>구간별 배점</th></tr></thead><tbody>']
     for r in rows:
         badge_class = "quant" if r["type"] == QUANT_BADGE else "qual"
+        dir_class = "dir-up" if r["direction"].startswith(UP) else "dir-other"
         html.append(
             f'<tr><td class="crit-name">{r["name"]}<br>'
             f'<span class="badge {badge_class}">{r["type"]}</span></td>'
-            f'<td class="direction">{r["direction"]}</td>'
+            f'<td class="direction {dir_class}">{r["direction"]}</td>'
             f'<td>{r["brackets"]}</td></tr>'
         )
     html.append("</tbody></table>")
