@@ -263,6 +263,23 @@ def main() -> None:
         hide_index=True,
         column_config={
             "종목명": st.column_config.LinkColumn(display_text=r"#(.+)$"),
+            "배당수익률(%)": st.column_config.Column(
+                help="연간 주당배당금(DART 사업보고서 기준) ÷ 오늘 현재가(KIS) × 100. "
+                "결산 시점 주가가 아니라 '오늘 이 가격에 사면 얼마인지' 기준입니다. "
+                "네이버증권과 같은 방식이며, 주식분할 등으로 계산값이 비정상적으로 크게 "
+                "나오는 경우 DART 공시 수치로 자동 대체됩니다."
+            ),
+            "총점(가중치 반영)": st.column_config.Column(
+                help="정량 9개 + 정성 4개 항목 점수에 사이드바 가중치를 곱해 합산한 값. "
+                "항목별 배점 내역은 아래 '배점 상세 보기'에서 종목을 선택하면 볼 수 있어요."
+            ),
+            "최근 배당기준일": st.column_config.Column(
+                help="이 날짜까지 주식을 보유하고 있어야 가장 최근 배당을 받을 수 있었습니다 "
+                "(한국예탁결제원 배당일정 기준)."
+            ),
+            "배당지급일": st.column_config.Column(
+                help="배당기준일에 해당하는 배당금이 실제로 지급되는(됐던) 날짜입니다."
+            ),
         },
     )
 

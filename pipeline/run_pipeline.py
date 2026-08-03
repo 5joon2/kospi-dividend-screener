@@ -158,6 +158,16 @@ def fetch_live_quant(ticker: str) -> QuantInput:
     annual_dps = dart.common_dps(corp_code, str(year))
     current_price = price.get("current_price")
     dividend_yield = round(annual_dps / current_price * 100, 2) if annual_dps and current_price else 0.0
+
+    # 이상치 방어: 주식분할 등으로 DART의 (분할 전) 연간배당금과 오늘의 (분할 후) 현재가가
+    # 서로 안 맞으면 수익률이 비정상적으로 커짐(예: 015360 INVENI, 39.16% vs 실제 3%대).
+    # DART 자체 공시 배당수익률(결산 시점 주가 기준, 부정확하지만 극단적이진 않음)과 비교해서
+    # 3배 넘게 크면 DART 값으로 대체 — 정확한 분할비율 보정은 원본 공시문서 파싱이 필요해
+    # 너무 복잡하고, 지금까지 833종목 중 1건뿐인 드문 케이스라 이 정도 절충으로 감(2026-08-04).
+    dart_reported_yield = dart.dividend_yield_pct(corp_code, str(year))
+    if dart_reported_yield and dividend_yield > dart_reported_yield * 3:
+        dividend_yield = dart_reported_yield
+
     quarterly = dart.has_quarterly_dividend(corp_code, str(year))
     increase_years = dart.dividend_increase_years(corp_code, year)
     treasury_ratio = dart.treasury_ratio_pct(corp_code, str(year)) or 0.0
