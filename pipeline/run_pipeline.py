@@ -20,6 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from exclusions import EXCLUDED_TICKERS  # noqa: E402
 from scoring import QualInput, QuantInput, score_stock  # noqa: E402
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -100,7 +101,8 @@ def load_ticker_list() -> list[tuple[str, str]]:
         )
     with TICKER_LIST_CSV.open(encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        return [(row["ticker"], row["name"]) for row in reader]
+        # REITs·인프라펀드는 투자 대상에서 제외 (pipeline/exclusions.py 참고, 2026-08-04 결정)
+        return [(row["ticker"], row["name"]) for row in reader if row["ticker"] not in EXCLUDED_TICKERS]
 
 
 def _latest_fiscal_year() -> int:

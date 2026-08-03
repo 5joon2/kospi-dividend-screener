@@ -202,10 +202,13 @@ def main() -> None:
             f"{DATA_CSV} 가 없습니다. 먼저 `uv run pipeline/run_pipeline.py --mock`(또는 실데이터 모드)를 실행하세요."
         )
         return
-    # 예전 파이프라인 실행분(배당일정 컬럼 추가 전)과의 호환용 — 없으면 빈 값으로 채움
+    # 예전 파이프라인 실행분(배당일정 컬럼 추가 전)과의 호환용 — 없으면 빈 값으로 채움.
+    # 아직 배당지급일이 공시 안 된 종목은 원본 데이터 자체가 비어있어 NaN이 되는데,
+    # 화면에 "NaN"으로 안 보이게 "-"로 통일 (2026-08-04 검수에서 280건 확인, 채점엔 무관).
     for col in ("recent_dividend_record_date", "recent_dividend_pay_date"):
         if col not in quant_df.columns:
             quant_df[col] = ""
+        quant_df[col] = quant_df[col].fillna("-")
 
     weights = sidebar_weights()
 
@@ -228,12 +231,17 @@ def main() -> None:
     df["종목명"] = df.apply(
         lambda r: NAVER_STOCK_URL.format(ticker=r["ticker"]) + "#" + r["name"], axis=1
     )
+    # dividend_yield_pct == -1은 "이상치로 확인돼 임시 보류 중"이라는 내부 표식 —
+    # 화면에는 숫자 대신 N/A로 보여줌 (2026-08-04, 미원화학/INVENI/대한제분/현대엘리베이터 등)
+    df["배당수익률 표시"] = df["dividend_yield_pct"].apply(
+        lambda v: "N/A ⚠️" if v < 0 else f"{v:.2f}%"
+    )
 
     compact_cols = {
         "순위": "순위",
         "종목명": "종목명",
         "weighted_total": "총점(가중치 반영)",
-        "dividend_yield_pct": "배당수익률(%)",
+        "배당수익률 표시": "배당수익률(%)",
     }
     extra_cols = {
         "ticker": "코드",
@@ -267,7 +275,8 @@ def main() -> None:
                 help="연간 주당배당금(DART 사업보고서 기준) ÷ 오늘 현재가(KIS) × 100. "
                 "결산 시점 주가가 아니라 '오늘 이 가격에 사면 얼마인지' 기준입니다. "
                 "네이버증권과 같은 방식이며, 주식분할 등으로 계산값이 비정상적으로 크게 "
-                "나오는 경우 DART 공시 수치로 자동 대체됩니다."
+                "나오는 경우 DART 공시 수치로 자동 대체됩니다. N/A로 표시된 종목은 "
+                "수치가 이상치로 확인돼 원인 파악 전까지 임시로 보류 중인 상태입니다."
             ),
             "총점(가중치 반영)": st.column_config.Column(
                 help="정량 9개 + 정성 4개 항목 점수에 사이드바 가중치를 곱해 합산한 값. "
