@@ -65,7 +65,12 @@ class DartClient:
         )
 
     def treasury_stock_disclosures(self, corp_code: str, start_date: str, end_date: str) -> dict:
-        """자기주식취득/처분 관련 공시 목록. pblntf_detail_ty=I001(자기주식취득), I002(자기주식처분) 등."""
+        """자기주식취득/처분 관련 공시 목록. pblntf_detail_ty=I001(자기주식취득), I002(자기주식처분) 등.
+
+        실키로 확인해보니 이 필터가 적용되지 않고 전체 공시가 반환됨(2026-08-03 테스트).
+        report_nm에 "자기주식취득"/"자기주식처분"이 포함된 건만 클라이언트에서
+        걸러내는 방식으로 바꿔야 함 — 아직 미수정.
+        """
         return self._get(
             "list.json",
             corp_code=corp_code,
