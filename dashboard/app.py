@@ -210,11 +210,30 @@ def main() -> None:
             quant_df[col] = ""
         quant_df[col] = quant_df[col].fillna("-")
 
+    # 예전 실행분과의 호환용 (업종/시가총액 컬럼 추가 전) — 없으면 빈 값으로 채움
+    if "industry" not in quant_df.columns:
+        quant_df["industry"] = "미분류"
+    if "market_cap" not in quant_df.columns:
+        quant_df["market_cap"] = 0
+    quant_df["industry"] = quant_df["industry"].fillna("미분류")
+
     weights = sidebar_weights()
 
     quant_df["is_top30_candidate"] = quant_df["quant_subtotal"].rank(
         ascending=False, method="first"
     ) <= TOP_N_FOR_QUAL
+
+    # 업종 내 상대 밸류에이션 — 절대 PER/PBR 대신 "업종 중앙값 대비 몇 %"로 비교.
+    # 평균 대신 중앙값을 쓰는 이유: PER은 이익이 0에 가까운 회사에서 수백~수천까지
+    # 튀는 경우가 흔해서(2026-08-04 검수에서 PER 4255 확인) 평균은 그 몇 개에 쉽게 왜곡됨.
+    valid_per = quant_df[quant_df["per"] > 0]
+    valid_pbr = quant_df[quant_df["pbr"] > 0]
+    industry_median_per = valid_per.groupby("industry")["per"].median()
+    industry_median_pbr = valid_pbr.groupby("industry")["pbr"].median()
+    quant_df["업종중앙값_per"] = quant_df["industry"].map(industry_median_per)
+    quant_df["업종중앙값_pbr"] = quant_df["industry"].map(industry_median_pbr)
+    quant_df["per_상대값"] = (quant_df["per"] / quant_df["업종중앙값_per"] - 1) * 100
+    quant_df["pbr_상대값"] = (quant_df["pbr"] / quant_df["업종중앙값_pbr"] - 1) * 100
 
     qual_df = compute_qual_scores(quant_df["ticker"].astype(str).tolist())
     df = quant_df.merge(qual_df, on="ticker", how="left")
@@ -224,7 +243,33 @@ def main() -> None:
     df["weighted_total"] = weighted_quant + weighted_qual
 
     df = df.sort_values("weighted_total", ascending=False).reset_index(drop=True)
+
+    st.subheader("필터")
+    filter_cols = st.columns(4)
+    with filter_cols[0]:
+        industries = st.multiselect("업종", sorted(df["industry"].unique()), placeholder="전체 업종")
+    with filter_cols[1]:
+        min_yield = st.number_input("배당수익률 최소(%)", min_value=0.0, value=0.0, step=0.5)
+    with filter_cols[2]:
+        max_per = st.number_input("PER 최대 (0=제한없음)", min_value=0.0, value=0.0, step=1.0)
+    with filter_cols[3]:
+        max_pbr = st.number_input("PBR 최대 (0=제한없음)", min_value=0.0, value=0.0, step=0.1)
+
+    if industries:
+        df = df[df["industry"].isin(industries)]
+    if min_yield > 0:
+        df = df[df["dividend_yield_pct"] >= min_yield]
+    if max_per > 0:
+        df = df[(df["per"] > 0) & (df["per"] <= max_per)]
+    if max_pbr > 0:
+        df = df[(df["pbr"] > 0) & (df["pbr"] <= max_pbr)]
+
+    df = df.reset_index(drop=True)
     df.insert(0, "순위", df.index + 1)
+
+    if df.empty:
+        st.warning("필터 조건에 맞는 종목이 없습니다. 조건을 완화해보세요.")
+        return
     # 종목명 셀 자체를 네이버증권 링크로 — URL 뒤에 #종목명을 붙여두고 LinkColumn의
     # display_text 정규식으로 그 부분만 뽑아 보여주는 방식(각 행마다 다른 텍스트를
     # 보여줄 수 있는 유일한 방법 — display_text는 URL 문자열에서만 추출 가능하기 때문).
@@ -235,6 +280,13 @@ def main() -> None:
     # 화면에는 숫자 대신 N/A로 보여줌 (2026-08-04, 미원화학/INVENI/대한제분/현대엘리베이터 등)
     df["배당수익률 표시"] = df["dividend_yield_pct"].apply(
         lambda v: "N/A ⚠️" if v < 0 else f"{v:.2f}%"
+    )
+    df["시가총액 표시"] = df["market_cap"].apply(lambda v: f"{v:,.0f}억원" if v else "-")
+    df["PER 상대값 표시"] = df["per_상대값"].apply(
+        lambda v: f"{v:+.0f}%" if pd.notna(v) else "-"
+    )
+    df["PBR 상대값 표시"] = df["pbr_상대값"].apply(
+        lambda v: f"{v:+.0f}%" if pd.notna(v) else "-"
     )
 
     compact_cols = {
@@ -247,8 +299,12 @@ def main() -> None:
         "ticker": "코드",
         "quant_subtotal": "정량 소계",
         "is_top30_candidate": "정성평가 대상",
+        "industry": "업종",
         "per": "PER",
+        "PER 상대값 표시": "PER(업종중앙값 대비)",
         "pbr": "PBR",
+        "PBR 상대값 표시": "PBR(업종중앙값 대비)",
+        "시가총액 표시": "시가총액",
         "recent_dividend_record_date": "최근 배당기준일",
         "recent_dividend_pay_date": "배당지급일",
     }
@@ -289,6 +345,16 @@ def main() -> None:
             "배당지급일": st.column_config.Column(
                 help="배당기준일에 해당하는 배당금이 실제로 지급되는(됐던) 날짜입니다."
             ),
+            "PER(업종중앙값 대비)": st.column_config.Column(
+                help="같은 업종(KIND 업종분류 기준) 종목들의 PER 중앙값과 비교한 값. "
+                "-30%면 업종 내에서 상대적으로 저평가, +30%면 상대적으로 고평가라는 뜻. "
+                "평균이 아니라 중앙값을 쓰는 이유는 적자 근처 회사의 PER이 수백~수천까지 "
+                "튀는 경우가 많아 평균이 쉽게 왜곡되기 때문입니다."
+            ),
+            "PBR(업종중앙값 대비)": st.column_config.Column(
+                help="같은 업종 종목들의 PBR 중앙값과 비교한 값. -30%면 업종 내 상대적 저평가."
+            ),
+            "시가총액": st.column_config.Column(help="KIS 기준 오늘자 시가총액 (억원 단위)."),
         },
     )
 
@@ -296,6 +362,15 @@ def main() -> None:
         f"총 {len(df)}개 종목 · 정량 데이터 기준 상위 {TOP_N_FOR_QUAL}개 종목만 "
         "'정성평가 입력' 페이지에서 사람이 직접 점수를 넣을 수 있습니다."
     )
+
+    st.divider()
+    st.subheader("업종 분포")
+    top_n_for_chart = st.slider("상위 몇 개 종목의 업종 분포를 볼까요?", 5, min(100, len(df)), min(20, len(df)))
+    chart_source = df.head(top_n_for_chart)["industry"].value_counts().reset_index()
+    chart_source.columns = ["업종", "종목 수"]
+    fig_industry = px.pie(chart_source, names="업종", values="종목 수", hole=0.4)
+    fig_industry.update_layout(height=420)
+    st.plotly_chart(fig_industry, width="stretch")
 
     st.divider()
     st.subheader("배점 상세 보기")

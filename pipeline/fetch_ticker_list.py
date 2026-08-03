@@ -26,7 +26,9 @@ def _fetch_market_list(market_type: str) -> pd.DataFrame:
     resp = requests.get(KIND_URL_TMPL.format(market=market_type), timeout=15)
     resp.encoding = "euc-kr"
     tables = pd.read_html(StringIO(resp.text), flavor="lxml")
-    df = tables[0][["회사명", "종목코드"]].rename(columns={"회사명": "name", "종목코드": "ticker"})
+    df = tables[0][["회사명", "종목코드", "업종"]].rename(
+        columns={"회사명": "name", "종목코드": "ticker", "업종": "industry"}
+    )
     df["ticker"] = df["ticker"].astype(str).str.zfill(6)
     # 소스 데이터에 동일 종목이 "지역" 컬럼만 다른 값으로 중복 등록된 경우가 있어(15건 확인,
     # 2026-08-03 — 지역 표기가 바뀌는 과도기라 신/구 행정구역명으로 각각 한 줄씩 잡힌 것으로 추정,
@@ -57,7 +59,7 @@ def normalize_corp_name(name: str) -> str:
 def main() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     df = fetch_kospi_tickers()
-    df[["ticker", "name"]].to_csv(OUTPUT_CSV, index=False, quoting=csv.QUOTE_MINIMAL)
+    df[["ticker", "name", "industry"]].to_csv(OUTPUT_CSV, index=False, quoting=csv.QUOTE_MINIMAL)
     print(f"{len(df)}개 코스피 종목 → {OUTPUT_CSV}")
 
 
