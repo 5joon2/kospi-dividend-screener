@@ -45,12 +45,19 @@ st.set_page_config(page_title="코스피 저평가 우량 배당주", layout="wi
 
 
 @st.cache_data
-def load_quant_scores() -> pd.DataFrame:
-    if not DATA_CSV.exists():
-        return pd.DataFrame()
+def _load_quant_scores_cached(_mtime: float) -> pd.DataFrame:
+    # _mtime을 캐시 키에 포함시켜서, CSV 파일이 갱신되면(GitHub Actions가 매일 커밋)
+    # Streamlit의 소프트 리로드("Updated app!")만으로도 캐시가 자동으로 무효화되게 함 —
+    # 이게 없으면 앱을 수동으로 완전히 Reboot해야만 새 데이터가 반영됨(실제로 겪은 문제).
     df = pd.read_csv(DATA_CSV, dtype={"ticker": str})
     df["ticker"] = df["ticker"].str.zfill(6)
     return df
+
+
+def load_quant_scores() -> pd.DataFrame:
+    if not DATA_CSV.exists():
+        return pd.DataFrame()
+    return _load_quant_scores_cached(DATA_CSV.stat().st_mtime)
 
 
 def compute_qual_scores(tickers: list[str]) -> pd.DataFrame:
