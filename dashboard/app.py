@@ -48,7 +48,9 @@ st.set_page_config(page_title="코스피 저평가 우량 배당주", layout="wi
 def load_quant_scores() -> pd.DataFrame:
     if not DATA_CSV.exists():
         return pd.DataFrame()
-    return pd.read_csv(DATA_CSV)
+    df = pd.read_csv(DATA_CSV, dtype={"ticker": str})
+    df["ticker"] = df["ticker"].str.zfill(6)
+    return df
 
 
 def compute_qual_scores(tickers: list[str]) -> pd.DataFrame:
