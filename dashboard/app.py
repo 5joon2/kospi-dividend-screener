@@ -78,11 +78,22 @@ def load_history() -> pd.DataFrame:
 
 def render_rank_trend_chart() -> None:
     history = load_history()
-    if history.empty or history["date"].nunique() < 2:
-        st.caption(
-            "일별 순위 변화 그래프는 데이터가 이틀 이상 쌓여야 표시됩니다 "
-            "(매일 자동 갱신되면서 점점 채워집니다)."
+    if history.empty:
+        st.caption("아직 히스토리 데이터가 없습니다 (파이프라인이 최소 1번은 실행돼야 함).")
+        return
+
+    if history["date"].nunique() < 2:
+        # 하루치뿐일 땐 추이를 그릴 수 없으니, 그날의 top-20 점수를 막대그래프로 대신 보여줌.
+        today_df = history.sort_values("rank")
+        fig = px.bar(
+            today_df, x="quant_subtotal", y="name", orientation="h",
+            labels={"quant_subtotal": "정량 점수", "name": ""},
+            text="quant_subtotal",
         )
+        fig.update_yaxes(autorange="reversed")  # 1등이 위로 오게
+        fig.update_layout(height=520, showlegend=False)
+        st.plotly_chart(fig, width="stretch")
+        st.caption("아직 하루치 데이터뿐이라 오늘의 top-20 점수만 보여드려요 — 내일부터는 순위 변화 추이로 바뀝니다.")
         return
 
     latest_date = history["date"].max()
