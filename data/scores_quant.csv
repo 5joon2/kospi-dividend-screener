@@ -1,0 +1,11 @@
+ticker,name,per,pbr,dividend_yield_pct,quarterly_dividend,dividend_increase_years,buyback_cancel_regular,cancel_ratio_pct,treasury_ratio_pct,dual_listed,score_per,score_pbr,score_dual_listed,score_dividend_yield,score_quarterly_dividend,score_dividend_increase_years,score_buyback_regular,score_cancel_ratio,score_treasury_ratio,quant_subtotal
+051910,LG화학,6.44,0.42,2.67,True,7,True,0.72,1.12,True,15,4,0,2,5,4,7,3,4,44
+024110,기업은행,19.5,0.83,5.85,False,0,True,0.57,2.28,False,5,3,5,7,0,0,7,3,2,32
+033780,KT&G,7.74,0.37,3.69,False,0,False,0.25,3.15,False,15,4,5,5,0,0,0,0,2,31
+055550,신한지주,12.26,0.68,7.45,True,0,False,1.98,3.24,False,5,3,5,10,5,0,0,0,2,30
+105560,KB금융,8.9,0.22,1.07,False,0,True,1.36,6.63,True,10,5,0,2,0,0,7,3,0,27
+015760,한국전력,6.46,1.59,5.62,False,0,False,1.73,7.05,False,15,0,5,7,0,0,0,0,0,27
+005930,삼성전자,14.41,0.54,5.24,False,5,False,0.11,6.59,False,5,4,5,7,0,4,0,0,0,25
+000810,삼성화재,10.12,1.27,3.38,False,10,False,2.82,4.38,False,5,0,5,5,0,5,0,0,2,22
+009540,HD한국조선해양,8.87,1.91,3.47,False,2,False,0.22,3.93,False,10,0,5,5,0,0,0,0,2,22
+035420,NAVER,16.03,1.11,2.78,True,2,False,1.81,1.89,False,5,0,5,2,5,0,0,0,4,21

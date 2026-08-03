@@ -1,0 +1,12 @@
+[project]
+name = "kospi-dividend-screener"
+version = "0.1.0"
+description = "코스피 저평가 우량 배당주 스코어링 대시보드"
+requires-python = ">=3.12"
+dependencies = [
+    "dart-fss>=0.4.17",
+    "pandas>=3.0.5",
+    "requests>=2.34.2",
+    "streamlit>=1.60.0",
+    "supabase>=2.31.0",
+]
