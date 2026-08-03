@@ -245,14 +245,19 @@ def main() -> None:
         "pbr": "PBR",
         "dividend_yield_pct": "배당수익률(%)",
     }
-    st.caption("종목명을 클릭하면 네이버증권 페이지로 이동합니다.")
-    st.dataframe(
+    st.caption(
+        "🔗 종목명을 클릭하면 네이버증권으로 이동 · "
+        "🔍 **총점(가중치 반영) 칸을 클릭**하면 아래에 그 종목의 배점 상세 내역이 나타나요."
+    )
+    event = st.dataframe(
         df[list(display_cols.keys())].rename(columns=display_cols),
         width="stretch",
         hide_index=True,
         column_config={
             "종목명": st.column_config.LinkColumn(display_text=r"#(.+)$"),
         },
+        on_select="rerun",
+        selection_mode="single-row",
     )
 
     st.caption(
@@ -260,14 +265,10 @@ def main() -> None:
         "'정성평가 입력' 페이지에서 사람이 직접 점수를 넣을 수 있습니다."
     )
 
-    st.divider()
-    st.subheader("배점 상세 보기")
-    options = [f"{r['순위']}. {r['name']} ({r['ticker']})" for _, r in df.iterrows()]
-    picked = st.selectbox("종목을 선택하면 항목별 배점 내역을 볼 수 있어요", options, index=None,
-                           placeholder="종목 선택...")
-    if picked:
-        picked_ticker = picked.split("(")[-1].rstrip(")")
-        selected = df.loc[df["ticker"] == picked_ticker].iloc[0]
+    selected_rows = event.selection.rows if event and event.selection else []
+    if selected_rows:
+        selected = df.iloc[selected_rows[0]]
+        st.subheader(f"📊 {selected['name']} 배점 상세")
         render_score_breakdown(selected, weights)
 
     st.divider()
