@@ -66,25 +66,14 @@ QUAL_RAW_DISPLAY = {
 st.set_page_config(page_title="코스피 저평가 우량 배당주", layout="wide")
 
 
-@st.cache_data
-def _load_quant_scores_cached(_mtime: float) -> pd.DataFrame:
-    # _mtime을 캐시 키에 포함시켜서, CSV 파일이 갱신되면(GitHub Actions가 매일 커밋)
-    # Streamlit의 소프트 리로드("Updated app!")만으로도 캐시가 자동으로 무효화되게 함 —
-    # 이게 없으면 앱을 수동으로 완전히 Reboot해야만 새 데이터가 반영됨(실제로 겪은 문제).
-    df = pd.read_csv(DATA_CSV, dtype={"ticker": str})
-    df["ticker"] = df["ticker"].str.zfill(6)
-    return df
-
-
 def load_quant_scores() -> pd.DataFrame:
+    # 일부러 캐싱 안 함 — mtime 기반 캐시무효화를 써봤는데 Streamlit Cloud가 git pull할 때
+    # 파일 mtime을 기대한 대로 갱신 안 해줘서 매번 수동 Reboot이 필요했던 적이 있음
+    # (2026-08-03). 833행짜리 작은 CSV라 매번 새로 읽어도 성능 부담이 없어서,
+    # 아예 캐시를 없애 이 문제 자체를 원천 차단.
     if not DATA_CSV.exists():
         return pd.DataFrame()
-    return _load_quant_scores_cached(DATA_CSV.stat().st_mtime)
-
-
-@st.cache_data
-def _load_history_cached(_mtime: float) -> pd.DataFrame:
-    df = pd.read_csv(HISTORY_CSV, dtype={"ticker": str})
+    df = pd.read_csv(DATA_CSV, dtype={"ticker": str})
     df["ticker"] = df["ticker"].str.zfill(6)
     return df
 
@@ -92,7 +81,9 @@ def _load_history_cached(_mtime: float) -> pd.DataFrame:
 def load_history() -> pd.DataFrame:
     if not HISTORY_CSV.exists():
         return pd.DataFrame()
-    return _load_history_cached(HISTORY_CSV.stat().st_mtime)
+    df = pd.read_csv(HISTORY_CSV, dtype={"ticker": str})
+    df["ticker"] = df["ticker"].str.zfill(6)
+    return df
 
 
 def render_rank_trend_chart() -> None:
