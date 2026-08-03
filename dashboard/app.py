@@ -44,6 +44,25 @@ QUAL_ITEMS = {
     "score_global_brand": "세계적 브랜드 보유",
 }
 
+# 배점 상세 패널용 — 각 항목의 (라벨, 원본 데이터 컬럼, 값 표시 방식)
+QUANT_RAW_DISPLAY = {
+    "score_per": ("PER", "per", lambda v: f"{v:.2f}"),
+    "score_pbr": ("PBR", "pbr", lambda v: f"{v:.2f}"),
+    "score_dual_listed": ("중복상장 여부", "dual_listed", lambda v: "중복상장" if v else "단독상장"),
+    "score_dividend_yield": ("배당수익률", "dividend_yield_pct", lambda v: f"{v:.2f}%"),
+    "score_quarterly_dividend": ("분기배당 실시", "quarterly_dividend", lambda v: "예" if v else "아니요"),
+    "score_dividend_increase_years": ("배당 연속 인상 연수", "dividend_increase_years", lambda v: f"{int(v)}년"),
+    "score_buyback_regular": ("정기 자사주매입·소각", "buyback_cancel_regular", lambda v: "예" if v else "아니요"),
+    "score_cancel_ratio": ("소각 비율", "cancel_ratio_pct", lambda v: f"{v:.2f}%"),
+    "score_treasury_ratio": ("자사주 보유 비율", "treasury_ratio_pct", lambda v: f"{v:.2f}%"),
+}
+QUAL_RAW_DISPLAY = {
+    "score_profit_sustainability": ("이익 지속가능성", "profit_sustainable", lambda v: "예" if v else "아니요/미입력"),
+    "score_growth_potential": ("미래 성장 잠재력", "growth_potential", lambda v: v or "미입력"),
+    "score_management": ("경영진 평가", "management", lambda v: v or "미입력"),
+    "score_global_brand": ("세계적 브랜드 보유", "global_brand", lambda v: "예" if v else "아니요/미입력"),
+}
+
 st.set_page_config(page_title="코스피 저평가 우량 배당주", layout="wide")
 
 
@@ -127,6 +146,26 @@ def compute_qual_scores(tickers: list[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def render_score_breakdown(row: pd.Series, weights: dict[str, float]) -> None:
+    qual_entry = db.load_all_qual_scores().get(row["ticker"], {})
+    lines = ["| 항목 | 원본 데이터 | 배점 | 가중치 | 반영 점수 |", "|---|---|---|---|---|"]
+
+    for score_key, (label, raw_key, fmt) in QUANT_RAW_DISPLAY.items():
+        raw_display = fmt(row[raw_key])
+        score = row[score_key]
+        weight = weights.get(score_key, 1.0)
+        lines.append(f"| {label} | {raw_display} | {score}점 | ×{weight:.1f} | {score * weight:.1f} |")
+
+    for score_key, (label, raw_key, fmt) in QUAL_RAW_DISPLAY.items():
+        raw_display = fmt(qual_entry.get(raw_key))
+        score = row[score_key]
+        weight = weights.get(score_key, 1.0)
+        lines.append(f"| {label} (정성) | {raw_display} | {score}점 | ×{weight:.1f} | {score * weight:.1f} |")
+
+    st.markdown("\n".join(lines))
+    st.markdown(f"**총점(가중치 반영): {row['weighted_total']:.1f}점**")
+
+
 def sidebar_weights() -> dict[str, float]:
     st.sidebar.header("가중치 조정")
     st.sidebar.caption("항목별 배점에 곱해지는 가중치 (기본 1.0 = 책 원안 그대로)")
@@ -188,12 +227,16 @@ def main() -> None:
 
     df = df.sort_values("weighted_total", ascending=False).reset_index(drop=True)
     df.insert(0, "순위", df.index + 1)
-    df["네이버증권"] = df["ticker"].apply(lambda t: NAVER_STOCK_URL.format(ticker=t))
+    # 종목명 셀 자체를 네이버증권 링크로 — URL 뒤에 #종목명을 붙여두고 LinkColumn의
+    # display_text 정규식으로 그 부분만 뽑아 보여주는 방식(각 행마다 다른 텍스트를
+    # 보여줄 수 있는 유일한 방법 — display_text는 URL 문자열에서만 추출 가능하기 때문).
+    df["종목명"] = df.apply(
+        lambda r: NAVER_STOCK_URL.format(ticker=r["ticker"]) + "#" + r["name"], axis=1
+    )
 
     display_cols = {
         "순위": "순위",
-        "name": "종목명",
-        "네이버증권": "네이버증권",
+        "종목명": "종목명",
         "ticker": "코드",
         "weighted_total": "총점(가중치 반영)",
         "quant_subtotal": "정량 소계",
@@ -202,19 +245,28 @@ def main() -> None:
         "pbr": "PBR",
         "dividend_yield_pct": "배당수익률(%)",
     }
-    st.dataframe(
+    st.caption("종목명을 클릭하면 네이버증권으로 이동하고, 행을 선택하면 아래에 배점 상세 내역이 나와요.")
+    event = st.dataframe(
         df[list(display_cols.keys())].rename(columns=display_cols),
         width="stretch",
         hide_index=True,
         column_config={
-            "네이버증권": st.column_config.LinkColumn(display_text="🔗 보기"),
+            "종목명": st.column_config.LinkColumn(display_text=r"#(.+)$"),
         },
+        on_select="rerun",
+        selection_mode="single-row",
     )
 
     st.caption(
         f"총 {len(df)}개 종목 · 정량 데이터 기준 상위 {TOP_N_FOR_QUAL}개 종목만 "
         "'정성평가 입력' 페이지에서 사람이 직접 점수를 넣을 수 있습니다."
     )
+
+    selected_rows = event.selection.rows if event and event.selection else []
+    if selected_rows:
+        selected = df.iloc[selected_rows[0]]
+        with st.expander(f"📊 {selected['name']} 배점 상세", expanded=True):
+            render_score_breakdown(selected, weights)
 
     st.divider()
     st.subheader("일별 TOP 20 순위 변화")
