@@ -27,6 +27,10 @@ def fetch_kospi_tickers() -> pd.DataFrame:
     tables = pd.read_html(StringIO(resp.text), flavor="lxml")
     df = tables[0][["회사명", "종목코드"]].rename(columns={"회사명": "name", "종목코드": "ticker"})
     df["ticker"] = df["ticker"].astype(str).str.zfill(6)
+    # 소스 데이터에 동일 종목이 "지역" 컬럼만 다른 값으로 중복 등록된 경우가 있어(15건 확인,
+    # 2026-08-03 — 지역 표기가 바뀌는 과도기라 신/구 행정구역명으로 각각 한 줄씩 잡힌 것으로 추정,
+    # 나머지 컬럼은 완전히 동일) 종목코드 기준으로 중복 제거.
+    df = df.drop_duplicates(subset="ticker", keep="first")
     return df.sort_values("ticker").reset_index(drop=True)
 
 

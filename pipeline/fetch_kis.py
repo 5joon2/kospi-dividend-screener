@@ -4,9 +4,8 @@
 인증: 환경변수 KIS_APP_KEY / KIS_APP_SECRET (apiportal.koreainvestment.com에서 발급).
 API 문서: https://apiportal.koreainvestment.com
 
-주의: 이 파일은 KIS 앱키를 아직 발급받기 전에 문서 기준으로 작성한 초안입니다.
-실제 키로 첫 실행할 때 응답 필드명/tr_id가 문서와 다르면 바로 잡아야 합니다 —
-`uv run pipeline/fetch_kis.py`로 삼성전자(005930) 하나만 먼저 테스트해볼 것.
+실키로 전종목(848개) 순회 테스트 중 이 API 도메인에 대한 DNS 해석이 간헐적으로
+실패하는 걸 확인(2026-08-03) — http_retry.request_with_retry로 재시도 처리.
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ from __future__ import annotations
 import os
 import time
 
-import requests
+from http_retry import request_with_retry
 
 KIS_BASE_URL = "https://openapi.koreainvestment.com:9443"
 
@@ -32,7 +31,8 @@ class KisClient:
         if self._access_token and time.time() < self._token_expires_at:
             return self._access_token
 
-        resp = requests.post(
+        resp = request_with_retry(
+            "POST",
             f"{KIS_BASE_URL}/oauth2/tokenP",
             json={
                 "grant_type": "client_credentials",
@@ -62,7 +62,8 @@ class KisClient:
 
         tr_id FHKST01010100 (실전투자/모의투자 공통 조회성 API).
         """
-        resp = requests.get(
+        resp = request_with_retry(
+            "GET",
             f"{KIS_BASE_URL}/uapi/domestic-stock/v1/quotations/inquire-price",
             headers=self._headers("FHKST01010100"),
             params={"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": ticker},
@@ -85,7 +86,8 @@ class KisClient:
         tr_id HHKDB669102C0. 종목코드는 6자리, 조회기간(gb1/cts) 파라미터는
         실제 발급 후 KIS Developers 포털의 "배당일정" 샘플로 재확인 필요.
         """
-        resp = requests.get(
+        resp = request_with_retry(
+            "GET",
             f"{KIS_BASE_URL}/uapi/domestic-stock/v1/ksdinfo/dividend",
             headers=self._headers("HHKDB669102C0"),
             params={"CTS": "", "GB1": "0", "F_DT": "", "T_DT": "", "SHT_CD": ticker},
@@ -100,19 +102,6 @@ def _to_float(value) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
-
-
-def load_kospi_ticker_list() -> list[str]:
-    """코스피 전종목 코드 목록.
-
-    KIS REST API에는 '전종목 목록' 전용 엔드포인트가 없어 KRX/KIS가 배포하는
-    종목마스터 파일(kospi_code.mst)을 내려받아 파싱하는 게 표준적인 방법.
-    1차 버전에서는 DART corpCode.xml에서 얻은 상장 종목 코드 목록으로 대체 가능
-    (run_pipeline.py에서 fetch_dart.corp_code_map() 결과를 그대로 사용).
-    """
-    raise NotImplementedError(
-        "코스피 종목 목록은 run_pipeline.py에서 DART corp_code_map()으로 대체 수집합니다."
-    )
 
 
 if __name__ == "__main__":
