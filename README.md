@@ -60,13 +60,12 @@ create table qual_scores (
 
 ## 실데이터 파이프라인 실행 전 준비
 
-1. 코스피 전종목 티커 목록을 `data/kospi_tickers.csv` (컬럼: `ticker,name`)로 준비.
-   (KIS REST API에는 전종목 목록 엔드포인트가 없어 종목마스터 파일 파싱 또는
-   별도 소스가 필요 — 아직 해결 전, TODO)
+1. 코스피 전종목 티커 목록 생성: `uv run pipeline/fetch_ticker_list.py`
+   → `data/kospi_tickers.csv` (848개 종목, KRX KIND 상장법인목록 다운로드 페이지 사용.
+   data.krx.co.kr의 MDC 통계 API는 봇 차단이 심해서 대신 이 경로를 씀). 상장/폐지가
+   자주 있는 건 아니라 종목 구성은 가끔(월 1회 정도)만 재실행하면 충분.
 2. `DART_API_KEY`, `KIS_APP_KEY`, `KIS_APP_SECRET` 환경변수 설정.
-3. `uv run pipeline/fetch_kis.py`로 삼성전자(005930) 하나 먼저 테스트해서
-   실제 응답 필드가 코드의 가정과 맞는지 확인 (KIS 앱키를 처음 발급받은 뒤 꼭 필요한 단계).
-4. `uv run pipeline/run_pipeline.py` (mock 아님) 실행.
+3. `uv run pipeline/run_pipeline.py` (mock 아님) 실행 — PER/PBR은 실데이터로 채워짐.
 
 ## Streamlit Community Cloud 배포
 
@@ -78,7 +77,9 @@ create table qual_scores (
 
 ## 알려진 TODO
 
-- `pipeline/fetch_kis.py`: 실제 앱키로 첫 테스트 후 배당/자사주 관련 필드 매핑 보완 필요
-- `pipeline/run_pipeline.py`의 `fetch_live_quant()`: 중복상장·배당연속인상연수·자사주매입소각 등
-  DART 데이터 매핑 아직 미구현 (현재는 PER/PBR만 실데이터, 나머지는 TODO 플레이스홀더)
-- 코스피 전종목 티커 목록 소스 확정 필요
+- `pipeline/run_pipeline.py`의 `fetch_live_quant()`: 중복상장·배당수익률·배당연속인상연수·
+  자사주매입소각 등 DART 데이터 매핑 아직 미구현 (현재는 PER/PBR만 실데이터, 나머지는
+  TODO 플레이스홀더 — 정성평가 대상 top-30 선정이 quant_subtotal 기준이라 이 항목들이
+  채워지기 전까지는 순위가 부정확함)
+- `pipeline/fetch_dart.py`의 `treasury_stock_disclosures()`: `pblntf_detail_ty` 필터가
+  실키 테스트에서 적용 안 되는 것 확인 — report_nm 텍스트 매칭으로 대체 필요
