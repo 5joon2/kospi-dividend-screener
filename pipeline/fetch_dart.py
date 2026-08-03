@@ -96,7 +96,10 @@ class DartClient:
     ) -> float | None:
         data = self.dividend_info(corp_code, year, report_code)
         for row in data.get("list", []):
-            if row.get("se") == se and row.get("stock_knd") == stock_knd:
+            # 회사마다 "보통주"/"보통주식" 등 표기가 달라서(2026-08-04, 한국타이어앤테크놀로지에서
+            # 발견 — "보통주식"이라 정확히 일치하는 "보통주"와 안 맞아 조용히 None 처리되던 버그)
+            # 정확히 일치 대신 접두어로 비교.
+            if row.get("se") == se and (row.get("stock_knd") or "").startswith(stock_knd):
                 return _parse_number(row.get("thstrm"))
         return None
 
@@ -165,6 +168,19 @@ class DartClient:
         """
         data = self._get("otrCprInvstmntSttus.json", corp_code=corp_code, bsns_year=year, reprt_code="11011")
         return data.get("list", [])
+
+    def is_holding_company(self, corp_code: str) -> bool:
+        """한국표준산업분류(KSIC) 업종코드가 64992("회사본부 및 지주회사")인지 여부.
+
+        LG/SK/롯데지주/하이트진로홀딩스/한국앤컴퍼니 등 알려진 지주회사 5곳으로
+        실키 검증 완료(2026-08-04) — 전부 64992로 일치, 비지주사(삼성물산/현대차/
+        한국타이어앤테크놀로지 등)는 전혀 다른 코드. "과반 지분 자회사가 상장돼
+        있다"만으로는 M&A로 다른 상장사를 인수한 경우까지 다 잡혀서(예:
+        한국타이어앤테크놀로지가 한온시스템 지분 51%를 M&A로 보유), 진짜 지주회사
+        구조만 걸러내려고 이 조건을 추가로 씀.
+        """
+        data = self._get("company.json", corp_code=corp_code)
+        return data.get("induty_code") == "64992"
 
 
 if __name__ == "__main__":

@@ -178,10 +178,14 @@ def fetch_live_quant(ticker: str) -> QuantInput:
             acquired = sum(_parse_number(a.get("aqpln_stk_ostk")) or 0 for a in acquisitions)
             cancel_ratio = round(acquired / total_shares * 100, 3)
 
-    # 중복상장: 타법인출자현황에서 지분율 50% 초과(자회사)인 피투자회사명이
-    # 코스피/코스닥 상장사명 집합에 있으면 True.
+    # 중복상장: "과반 지분(>50%) 자회사가 상장돼 있음" + "본인이 지주회사(KSIC 업종코드
+    # 64992, 회사본부 및 지주회사)임" 둘 다 만족해야 True. 지분율 조건만 보면 M&A로
+    # 다른 상장사를 인수한 경우(예: 한국타이어앤테크놀로지가 한온시스템 지분 51% 보유)까지
+    # 다 잡혀서, "지주회사 구조"만 걸러내려고 업종코드 조건을 추가함 (2026-08-04).
+    # 정확한 기준은 README와 대시보드 "채점기준표" 페이지에도 명시.
     holdings = dart.investee_holdings(corp_code, str(year))
-    dual_listed = any(_is_majority_owned_and_listed(h, listed_names) for h in holdings)
+    has_listed_subsidiary = any(_is_majority_owned_and_listed(h, listed_names) for h in holdings)
+    dual_listed = has_listed_subsidiary and dart.is_holding_company(corp_code)
 
     return QuantInput(
         per=price["per"],
