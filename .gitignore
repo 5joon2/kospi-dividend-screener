@@ -12,3 +12,6 @@ wheels/
 # Secrets
 .streamlit/secrets.toml
 .env
+
+# KIS 토큰 캐시 (단명 크레덴셜)
+.kis_token_cache.json

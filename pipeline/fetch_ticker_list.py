@@ -9,20 +9,21 @@ KIND(kind.krx.co.kr) 상장법인목록 다운로드 페이지는 예전 방식�
 from __future__ import annotations
 
 import csv
+import re
 from io import StringIO
 from pathlib import Path
 
 import pandas as pd
 import requests
 
-KIND_URL = "https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&marketType=stockMkt"
+KIND_URL_TMPL = "https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&marketType={market}"
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 OUTPUT_CSV = DATA_DIR / "kospi_tickers.csv"
 
 
-def fetch_kospi_tickers() -> pd.DataFrame:
-    resp = requests.get(KIND_URL, timeout=15)
+def _fetch_market_list(market_type: str) -> pd.DataFrame:
+    resp = requests.get(KIND_URL_TMPL.format(market=market_type), timeout=15)
     resp.encoding = "euc-kr"
     tables = pd.read_html(StringIO(resp.text), flavor="lxml")
     df = tables[0][["회사명", "종목코드"]].rename(columns={"회사명": "name", "종목코드": "ticker"})
@@ -30,8 +31,27 @@ def fetch_kospi_tickers() -> pd.DataFrame:
     # 소스 데이터에 동일 종목이 "지역" 컬럼만 다른 값으로 중복 등록된 경우가 있어(15건 확인,
     # 2026-08-03 — 지역 표기가 바뀌는 과도기라 신/구 행정구역명으로 각각 한 줄씩 잡힌 것으로 추정,
     # 나머지 컬럼은 완전히 동일) 종목코드 기준으로 중복 제거.
-    df = df.drop_duplicates(subset="ticker", keep="first")
+    return df.drop_duplicates(subset="ticker", keep="first")
+
+
+def fetch_kospi_tickers() -> pd.DataFrame:
+    df = _fetch_market_list("stockMkt")
     return df.sort_values("ticker").reset_index(drop=True)
+
+
+def fetch_all_listed_names() -> set[str]:
+    """중복상장(계열사 상장) 판정용 — 코스피+코스닥 전체 상장사명 집합.
+
+    회사명은 원문 그대로 반환하고, 정규화(㈜/공백 제거 등)는 normalize_corp_name으로 맞춰서 비교.
+    """
+    kospi = _fetch_market_list("stockMkt")
+    kosdaq = _fetch_market_list("kosdaqMkt")
+    return set(kospi["name"]) | set(kosdaq["name"])
+
+
+def normalize_corp_name(name: str) -> str:
+    """"㈜하이트진로", "하이트진로(주)", "하이트진로 " 등 표기 차이를 없애고 비교하기 위함."""
+    return re.sub(r"[㈜()주식회사\s]", "", name or "")
 
 
 def main() -> None:

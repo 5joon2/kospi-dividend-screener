@@ -23,6 +23,15 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Health check (KIS/DART/KIND/Supabase)
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: uv run pipeline/health_check.py
+
       - name: Run pipeline
         env:
           DART_API_KEY: ${{ secrets.DART_API_KEY }}

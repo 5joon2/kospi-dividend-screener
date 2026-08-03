@@ -85,19 +85,35 @@ def _latest_fiscal_year() -> int:
     return today.year - 1 if today.month >= 4 else today.year - 2
 
 
+def _is_majority_owned_and_listed(holding: dict, listed_names: set[str]) -> bool:
+    from fetch_dart import _parse_number
+    from fetch_ticker_list import normalize_corp_name
+
+    pct = _parse_number(holding.get("trmend_blce_qota_rt"))
+    if pct is None or pct <= 50:  # "자회사"로 볼 수 있는 과반 지분만 인정
+        return False
+    return normalize_corp_name(holding.get("inv_prm", "")) in listed_names
+
+
 def fetch_live_quant(ticker: str) -> QuantInput:
     from fetch_dart import DartClient, _parse_number
     from fetch_kis import KisClient
+    from fetch_ticker_list import fetch_all_listed_names, normalize_corp_name
 
     kis = fetch_live_quant._kis_client
     dart = fetch_live_quant._dart_client
     corp_map = fetch_live_quant._corp_map
+    listed_names = fetch_live_quant._listed_names
     if kis is None:
         kis = fetch_live_quant._kis_client = KisClient()
     if dart is None:
         dart = fetch_live_quant._dart_client = DartClient()
     if corp_map is None:
         corp_map = fetch_live_quant._corp_map = dart.corp_code_map()
+    if listed_names is None:
+        listed_names = fetch_live_quant._listed_names = {
+            normalize_corp_name(n) for n in fetch_all_listed_names()
+        }
 
     price = kis.price_metrics(ticker)
     corp_code = corp_map.get(ticker)
@@ -132,10 +148,15 @@ def fetch_live_quant(ticker: str) -> QuantInput:
             acquired = sum(_parse_number(a.get("aqpln_stk_ostk")) or 0 for a in acquisitions)
             cancel_ratio = round(acquired / total_shares * 100, 3)
 
+    # 중복상장: 타법인출자현황에서 지분율 50% 초과(자회사)인 피투자회사명이
+    # 코스피/코스닥 상장사명 집합에 있으면 True.
+    holdings = dart.investee_holdings(corp_code, str(year))
+    dual_listed = any(_is_majority_owned_and_listed(h, listed_names) for h in holdings)
+
     return QuantInput(
         per=price["per"],
         pbr=price["pbr"],
-        dual_listed=False,  # TODO: 계열사 상장 여부 판정 로직 미구현
+        dual_listed=dual_listed,
         dividend_yield_pct=dividend_yield,
         quarterly_dividend=quarterly,
         dividend_increase_years=increase_years,
@@ -148,6 +169,7 @@ def fetch_live_quant(ticker: str) -> QuantInput:
 fetch_live_quant._kis_client = None
 fetch_live_quant._dart_client = None
 fetch_live_quant._corp_map = None
+fetch_live_quant._listed_names = None
 
 
 def _build_row(ticker: str, name: str, quant: QuantInput) -> dict:

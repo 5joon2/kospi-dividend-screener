@@ -157,6 +157,15 @@ class DartClient:
         data = self._get("tsstkAqDecsn.json", corp_code=corp_code, bgn_de=start_date, end_de=end_date)
         return data.get("list", [])
 
+    def investee_holdings(self, corp_code: str, year: str) -> list[dict]:
+        """타법인출자현황 — 피투자회사명(inv_prm)/지분율(trmend_blce_qota_rt) 등.
+
+        상장여부 필드는 없어서, 반환된 피투자회사명을 상장사명 집합과 대조해서
+        "자회사·손자회사 상장 여부(중복상장)"를 판정하는 데 사용 (run_pipeline.py 참고).
+        """
+        data = self._get("otrCprInvstmntSttus.json", corp_code=corp_code, bsns_year=year, reprt_code="11011")
+        return data.get("list", [])
+
 
 if __name__ == "__main__":
     client = DartClient()
