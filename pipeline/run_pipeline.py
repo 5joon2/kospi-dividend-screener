@@ -152,7 +152,12 @@ def fetch_live_quant(ticker: str) -> QuantInput:
         )
 
     year = _latest_fiscal_year()
-    dividend_yield = dart.dividend_yield_pct(corp_code, str(year)) or 0.0
+    # 배당수익률 = 연간 주당배당금(DART) / 오늘 현재가(KIS) — DART가 주는 현금배당수익률은
+    # 결산일 시점 주가 기준이라 오늘 매수 관점에서는 최신 주가 기준이 더 맞다고 판단해
+    # (2026-08-03 논의) 직접 계산으로 바꿈.
+    annual_dps = dart.common_dps(corp_code, str(year))
+    current_price = price.get("current_price")
+    dividend_yield = round(annual_dps / current_price * 100, 2) if annual_dps and current_price else 0.0
     quarterly = dart.has_quarterly_dividend(corp_code, str(year))
     increase_years = dart.dividend_increase_years(corp_code, year)
     treasury_ratio = dart.treasury_ratio_pct(corp_code, str(year)) or 0.0

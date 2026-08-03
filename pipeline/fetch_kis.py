@@ -125,6 +125,7 @@ class KisClient:
             "eps": _to_float(output.get("eps")),
             "bps": _to_float(output.get("bps")),
             "market_cap": _to_float(output.get("hts_avls")),
+            "current_price": _to_float(output.get("stck_prpr")),
         }
 
     def dividend_schedule(self, ticker: str, from_date: str, to_date: str) -> list[dict]:
