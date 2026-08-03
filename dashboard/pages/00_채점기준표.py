@@ -70,12 +70,15 @@ section1 = [
     {"name": "이익 지속가능성", "type": QUAL_BADGE, "direction": GOOD,
      "brackets": "대체로 지속가능 → 5점 · 불안정 → 0점"},
     {"name": "중복상장 여부", "type": QUANT_BADGE, "direction": GOOD + " (단독상장이 유리)",
-     "brackets": "단독상장 → 5점 · 중복상장(자회사·손자회사 상장) → 0점"},
+     "brackets": "단독상장 → 5점 · 중복상장 → 0점 (판정: 과반지분(&gt;50%) 자회사가 "
+     "상장돼 있음 AND 본인이 지주회사(업종코드 64992)일 때만 '중복상장'. "
+     "M&amp;A로 다른 상장사 지분을 보유한 경우는 제외 — 자세한 기준은 README 참고)"},
 ]
 
 section2 = [
     {"name": "배당수익률", "type": QUANT_BADGE, "direction": UP,
-     "brackets": "&gt;7% → 10점 · &gt;5% → 7점 · &gt;3% → 5점 · 그 외 → 2점"},
+     "brackets": "&gt;7% → 10점 · &gt;5% → 7점 · &gt;3% → 5점 · 그 외 → 2점 "
+     "(연간 주당배당금 ÷ 오늘 현재가로 계산 — 결산시점 주가 기준 아님, README 참고)"},
     {"name": "분기배당 실시 여부", "type": QUANT_BADGE, "direction": GOOD,
      "brackets": "예 → 5점 · 아니요 → 0점"},
     {"name": "배당 연속 인상 연수", "type": QUANT_BADGE, "direction": UP,
