@@ -229,19 +229,30 @@ def main() -> None:
         lambda r: NAVER_STOCK_URL.format(ticker=r["ticker"]) + "#" + r["name"], axis=1
     )
 
-    display_cols = {
+    compact_cols = {
         "순위": "순위",
         "종목명": "종목명",
-        "ticker": "코드",
         "weighted_total": "총점(가중치 반영)",
+        "dividend_yield_pct": "배당수익률(%)",
+    }
+    extra_cols = {
+        "ticker": "코드",
         "quant_subtotal": "정량 소계",
         "is_top30_candidate": "정성평가 대상",
         "per": "PER",
         "pbr": "PBR",
-        "dividend_yield_pct": "배당수익률(%)",
         "recent_dividend_record_date": "최근 배당기준일",
         "recent_dividend_pay_date": "배당지급일",
     }
+
+    show_all_cols = st.toggle(
+        "전체 컬럼 보기",
+        value=False,
+        help="기본은 모바일에서도 보기 편하게 핵심 컬럼만 표시합니다. "
+        "PER·PBR·배당일 등 나머지 컬럼은 이 토글을 켜면 볼 수 있어요.",
+    )
+    display_cols = {**compact_cols, **extra_cols} if show_all_cols else compact_cols
+
     # LinkColumn과 on_select(행 선택)를 같은 dataframe에 같이 쓰면 링크 렌더링 자체가
     # 깨지는 걸 확인함(2026-08-03, 실사용 중 발견) — 그래서 링크 전용 표 + 배점 상세는
     # 완전히 분리된 selectbox로 나눔.
