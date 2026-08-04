@@ -259,9 +259,10 @@ def main() -> None:
     with filter_cols[1]:
         size_groups = st.multiselect(
             "기업 규모", ["대형주(1~100위)", "중형주(101~300위)", "소형주(301위~)"],
-            placeholder="전체 규모",
+            default=["대형주(1~100위)"],
             help="KRX가 코스피 대형주/중형주/소형주 지수를 나눌 때 쓰는 것과 같은 기준 — "
-            "시가총액 순위 1~100위/101~300위/301위 이하.",
+            "시가총액 순위 1~100위/101~300위/301위 이하. 기본값은 대형주만 보이게 "
+            "설정돼 있고, 여기서 지우거나 다른 걸 추가하면 됩니다.",
         )
     with filter_cols[2]:
         min_yield = st.number_input("배당수익률 최소(%)", min_value=0.0, value=0.0, step=0.5)
