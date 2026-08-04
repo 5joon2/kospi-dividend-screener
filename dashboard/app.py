@@ -86,10 +86,10 @@ def load_history() -> pd.DataFrame:
     return df
 
 
-def render_rank_trend_chart() -> None:
-    history = load_history()
+def render_rank_trend_chart(history: pd.DataFrame) -> None:
+    """history는 이미 특정 size_group으로 필터된 데이터."""
     if history.empty:
-        st.caption("아직 히스토리 데이터가 없습니다 (파이프라인이 최소 1번은 실행돼야 함).")
+        st.caption("이 규모 구간은 아직 히스토리 데이터가 없습니다.")
         return
 
     if history["date"].nunique() < 2:
@@ -402,7 +402,15 @@ def main() -> None:
 
     st.divider()
     st.subheader("일별 TOP 20 순위 변화")
-    render_rank_trend_chart()
+    history = load_history()
+    if not history.empty and "size_group" not in history.columns:
+        st.caption("규모별 구분 이전 히스토리라 표시할 수 없습니다 — 다음 자동 갱신부터 반영됩니다.")
+    else:
+        tabs = st.tabs(["대형주", "중형주", "소형주"])
+        for tab, group in zip(tabs, ["대형주", "중형주", "소형주"]):
+            with tab:
+                group_history = history[history["size_group"] == group] if not history.empty else history
+                render_rank_trend_chart(group_history)
 
 
 if __name__ == "__main__":

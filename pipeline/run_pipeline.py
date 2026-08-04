@@ -284,37 +284,59 @@ def _process_universe(
     return rows, failures
 
 
+def _compute_size_group(rows: list[dict]) -> dict[str, str]:
+    """시가총액 순위 기준 대형주(1~100위)/중형주(101~300위)/소형주(301위~) 분류.
+
+    dashboard/app.py의 "기업 규모" 필터(KRX 코스피 대형/중형/소형주 지수와 같은 기준)와
+    동일한 로직 — market_cap은 이미 rows에 있어서 API 호출 없이 로컬 계산만으로 가능.
+    """
+    ranked = sorted(rows, key=lambda r: r.get("market_cap") or 0, reverse=True)
+    groups: dict[str, str] = {}
+    for i, r in enumerate(ranked, 1):
+        if i <= 100:
+            groups[r["ticker"]] = "대형주"
+        elif i <= 300:
+            groups[r["ticker"]] = "중형주"
+        else:
+            groups[r["ticker"]] = "소형주"
+    return groups
+
+
 def _append_history(rows: list[dict]) -> None:
-    """정량 상위 HISTORY_TOP_N개 종목의 순위를 오늘 날짜로 score_history.csv에 누적.
+    """규모(대형/중형/소형주)별 정량 상위 HISTORY_TOP_N개 종목의 순위를 오늘 날짜로
+    score_history.csv에 누적 — 규모 구분 없이 뭉쳐서 보면 대형주 위주로 쏠려 보이는
+    문제가 있어(2026-08-04 사용자 피드백) 규모별로 따로 추적하도록 변경.
 
     같은 날 여러 번 실행해도(로컬 재실행 등) 중복이 쌓이지 않도록, 오늘 날짜의
     기존 기록은 지우고 다시 쓴다.
     """
     today = date.today().isoformat()
-    history_fields = ["date", "ticker", "name", "rank", "quant_subtotal"]
+    history_fields = ["date", "size_group", "ticker", "name", "rank", "quant_subtotal"]
 
     existing_rows: list[dict] = []
     if HISTORY_CSV.exists():
         with HISTORY_CSV.open(encoding="utf-8") as f:
-            existing_rows = [r for r in csv.DictReader(f) if r["date"] != today]
+            existing_rows = [r for r in csv.DictReader(f) if r.get("date") != today]
 
-    today_rows = [
-        {
-            "date": today,
-            "ticker": r["ticker"],
-            "name": r["name"],
-            "rank": i,
-            "quant_subtotal": r["quant_subtotal"],
-        }
-        for i, r in enumerate(rows[:HISTORY_TOP_N], 1)
-    ]
+    size_group_by_ticker = _compute_size_group(rows)
+    today_rows = []
+    for group in ("대형주", "중형주", "소형주"):
+        group_rows = sorted(
+            (r for r in rows if size_group_by_ticker.get(r["ticker"]) == group),
+            key=lambda r: r["quant_subtotal"], reverse=True,
+        )
+        for i, r in enumerate(group_rows[:HISTORY_TOP_N], 1):
+            today_rows.append({
+                "date": today, "size_group": group, "ticker": r["ticker"],
+                "name": r["name"], "rank": i, "quant_subtotal": r["quant_subtotal"],
+            })
 
     with HISTORY_CSV.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=history_fields)
         writer.writeheader()
         writer.writerows(existing_rows + today_rows)
 
-    print(f"히스토리 기록: {today} top {len(today_rows)} → {HISTORY_CSV}")
+    print(f"히스토리 기록: {today} 대형/중형/소형주 각 top{HISTORY_TOP_N} (총 {len(today_rows)}건) → {HISTORY_CSV}")
 
 
 def run(mock: bool, max_retry_passes: int = 3) -> None:
