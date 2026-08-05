@@ -18,8 +18,11 @@ import os
 import streamlit as st
 
 
-@st.cache_resource
 def _get_client():
+    # 일부러 캐싱 안 함 — st.cache_resource로 캐싱했다가, Secrets를 나중에 추가해도
+    # 앱이 처음 뜰 때 "미설정" 상태로 캐시가 굳어서 수동 Reboot 전까지 계속
+    # "Supabase가 설정되지 않았다"고 나오는 문제를 겪음(2026-08-05). Supabase 클라이언트
+    # 생성 자체는 가벼운 로컬 작업(네트워크 호출 없음)이라 매번 새로 만들어도 부담 없음.
     try:
         url = st.secrets["SUPABASE_URL"]
         key = st.secrets["SUPABASE_ANON_KEY"]
