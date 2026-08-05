@@ -227,7 +227,10 @@ def main() -> None:
 
     weights = sidebar_weights()
 
-    quant_df["is_top30_candidate"] = quant_df["quant_subtotal"].rank(
+    # 규모(대형/중형/소형주)별로 각각 top-30 — 전체 기준으로만 뽑으면 유망한 소형주가
+    # 대형주에 밀려 애초에 정성평가 후보에도 못 드는 문제가 있어서(2026-08-05 결정)
+    # 규모별 독립 랭킹으로 변경. 최대 30×3=90개가 정성평가 대상이 됨.
+    quant_df["is_top30_candidate"] = quant_df.groupby("규모구분", observed=True)["quant_subtotal"].rank(
         ascending=False, method="first"
     ) <= TOP_N_FOR_QUAL
 
@@ -378,8 +381,8 @@ def main() -> None:
     )
 
     st.caption(
-        f"총 {len(df)}개 종목 · 정량 데이터 기준 상위 {TOP_N_FOR_QUAL}개 종목만 "
-        "'정성평가 입력' 페이지에서 사람이 직접 점수를 넣을 수 있습니다."
+        f"총 {len(df)}개 종목 · 대형/중형/소형주 각각 정량 데이터 기준 상위 {TOP_N_FOR_QUAL}개씩"
+        f"(최대 {TOP_N_FOR_QUAL * 3}개)만 '정성평가 입력' 페이지에서 사람이 직접 점수를 넣을 수 있습니다."
     )
 
     st.divider()
