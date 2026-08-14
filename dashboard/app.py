@@ -24,6 +24,7 @@ import db  # noqa: E402
 DATA_CSV = Path(__file__).parent.parent / "data" / "scores_quant.csv"
 HISTORY_CSV = Path(__file__).parent.parent / "data" / "score_history.csv"
 TOP_N_FOR_QUAL = 30
+HISTORY_TOP_N = 20  # pipeline/run_pipeline.py의 HISTORY_TOP_N과 동일한 값 — 히스토리 안내 문구용
 NAVER_STOCK_URL = "https://finance.naver.com/item/main.naver?code={ticker}"
 
 QUANT_ITEMS = {
@@ -120,6 +121,42 @@ def render_rank_trend_chart(history: pd.DataFrame) -> None:
     fig.update_yaxes(autorange="reversed", dtick=1)
     fig.update_layout(height=520, legend_title_text="", hovermode="closest")
     st.plotly_chart(fig, width="stretch")
+
+
+def render_ticker_score_trend(history: pd.DataFrame, ticker: str, name: str) -> None:
+    """선택한 종목 하나의 정량 점수·순위 추이(2026-08-14, "특정 기업 눌렀을 때 점수
+    변화 추이를 보고 싶다" 요청) — history는 규모 필터링 전 전체 데이터를 받아서
+    여기서 ticker로 직접 거른다. history.csv는 규모별 상위 HISTORY_TOP_N위 안에
+    든 날만 기록되므로, 순위가 밀린 날은 그 구간이 그래프에서 비게 된다.
+
+    총점(가중치 반영, 정성평가 포함)은 여기 안 나온다 — 그건 사이드바 가중치와
+    그날그날의 정성평가 입력값에 좌우되는 "지금 이 세션" 값이라 히스토리로 저장된
+    적이 없다. 여기 나오는 건 그 총점의 절반(정량 9개 항목)에 해당하는
+    quant_subtotal과 그 기준 순위뿐."""
+    ticker_history = history[history["ticker"] == ticker].sort_values("date") if not history.empty else history
+    if ticker_history.empty:
+        st.caption(f"{name}은(는) 아직 규모별 상위 {HISTORY_TOP_N}위 안에 든 기록이 없어 추이를 볼 수 없습니다.")
+        return
+    if ticker_history["date"].nunique() < 2:
+        st.caption(f"{name}의 히스토리가 아직 하루치뿐이라 추이를 그릴 수 없어요 — 내일부터 쌓입니다.")
+        return
+
+    st.markdown(f"**{name} 정량 점수 추이**")
+    fig_score = px.line(
+        ticker_history, x="date", y="quant_subtotal", markers=True,
+        labels={"date": "날짜", "quant_subtotal": "정량 점수"},
+    )
+    fig_score.update_layout(height=280)
+    st.plotly_chart(fig_score, width="stretch")
+
+    st.markdown(f"**{name} 순위 추이** (규모 구분 내)")
+    fig_rank = px.line(
+        ticker_history, x="date", y="rank", markers=True,
+        labels={"date": "날짜", "rank": "순위"},
+    )
+    fig_rank.update_yaxes(autorange="reversed", dtick=1)
+    fig_rank.update_layout(height=280)
+    st.plotly_chart(fig_rank, width="stretch")
 
 
 def compute_qual_scores(tickers: list[str]) -> pd.DataFrame:
@@ -403,6 +440,7 @@ def main() -> None:
         picked_ticker = picked.split("(")[-1].rstrip(")")
         selected = df.loc[df["ticker"] == picked_ticker].iloc[0]
         render_score_breakdown(selected, weights)
+        render_ticker_score_trend(load_history(), picked_ticker, selected["name"])
 
     st.divider()
     st.subheader("일별 TOP 20 순위 변화")
