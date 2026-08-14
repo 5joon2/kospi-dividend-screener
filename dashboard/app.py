@@ -123,33 +123,51 @@ def render_rank_trend_chart(history: pd.DataFrame) -> None:
     st.plotly_chart(fig, width="stretch")
 
 
-def render_ticker_score_trend(history: pd.DataFrame, ticker: str, name: str) -> None:
-    """선택한 종목 하나의 정량 점수·순위 추이(2026-08-14, "특정 기업 눌렀을 때 점수
-    변화 추이를 보고 싶다" 요청) — history는 규모 필터링 전 전체 데이터를 받아서
-    여기서 ticker로 직접 거른다. history.csv는 규모별 상위 HISTORY_TOP_N위 안에
-    든 날만 기록되므로, 순위가 밀린 날은 그 구간이 그래프에서 비게 된다.
+def render_ticker_score_trend(
+    history: pd.DataFrame, ticker: str, name: str, qual_subtotal: float, qual_evaluated: bool,
+) -> None:
+    """선택한 종목 하나의 최종 점수(정량+정성)·순위 추이 — history는 규모 필터링
+    전 전체 데이터를 받아서 여기서 ticker로 직접 거른다. history.csv는 규모별
+    상위 HISTORY_TOP_N위 안에 든 날만 기록되므로, 순위가 밀린 날은 그 구간이
+    그래프에서 비게 된다.
 
-    총점(가중치 반영, 정성평가 포함)은 여기 안 나온다 — 그건 사이드바 가중치와
-    그날그날의 정성평가 입력값에 좌우되는 "지금 이 세션" 값이라 히스토리로 저장된
-    적이 없다. 여기 나오는 건 그 총점의 절반(정량 9개 항목)에 해당하는
-    quant_subtotal과 그 기준 순위뿐."""
+    정성 점수는 날짜별로 저장된 적이 없다(사이드바 가중치·정성평가 입력값에 좌우
+    되는 "지금 이 세션" 값이라서, 2026-08-07 첫 버전 참고) — 그래서 매일의
+    quant_subtotal에 "지금" 정성 소계를 그대로 더해서 보여준다(기본 가중치 1.0
+    기준 — 사이드바에서 조정한 가중치는 과거 항목별 배점이 없어 재현 불가능).
+    즉 이 추이는 "그날 실제로 받았던 총점"이 아니라 "그날의 정량 점수 + 지금
+    시점의 정성 평가"다(2026-08-14, "정량만 보이니 너무 낮아 보인다" 요청 반영).
+
+    정성평가가 아예 안 들어간 종목은 정성 소계가 무조건 0이라 총점이 부당하게
+    낮아 보일 수 있어서(2026-08-14, "누군 정성 넣고 누군 안 넣으면 불공평"
+    지적), 정성평가 입력 여부를 항상 같이 표시한다."""
     ticker_history = history[history["ticker"] == ticker].sort_values("date") if not history.empty else history
     if ticker_history.empty:
         st.caption(f"{name}은(는) 아직 규모별 상위 {HISTORY_TOP_N}위 안에 든 기록이 없어 추이를 볼 수 없습니다.")
         return
+
+    if qual_evaluated:
+        st.caption(f"✅ 정성평가 입력됨 — 정성 소계 {qual_subtotal:.0f}점(기본 가중치 기준)을 아래 추이에 반영했습니다.")
+    else:
+        st.caption("⚠️ 정성평가 미입력 — 정성 소계 0점으로 계산돼서, 정성평가를 받은 다른 종목보다 최종 점수가 낮게 보일 수 있어요.")
+
     if ticker_history["date"].nunique() < 2:
         st.caption(f"{name}의 히스토리가 아직 하루치뿐이라 추이를 그릴 수 없어요 — 내일부터 쌓입니다.")
         return
 
-    st.markdown(f"**{name} 정량 점수 추이**")
+    ticker_history = ticker_history.copy()
+    ticker_history["final_score"] = ticker_history["quant_subtotal"] + qual_subtotal
+
+    st.markdown(f"**{name} 최종 점수 추이** (정량 + 정성, 기본 가중치 기준)")
     fig_score = px.line(
-        ticker_history, x="date", y="quant_subtotal", markers=True,
-        labels={"date": "날짜", "quant_subtotal": "정량 점수"},
+        ticker_history, x="date", y="final_score", markers=True,
+        labels={"date": "날짜", "final_score": "최종 점수"},
     )
     fig_score.update_layout(height=280)
     st.plotly_chart(fig_score, width="stretch")
+    st.caption("정성 부분은 과거 날짜에도 지금의 정성평가 값을 그대로 적용한 값이에요 — 정성평가 자체는 날짜별로 기록되지 않습니다.")
 
-    st.markdown(f"**{name} 순위 추이** (규모 구분 내)")
+    st.markdown(f"**{name} 순위 추이** (규모 구분 내, 정량 기준)")
     fig_rank = px.line(
         ticker_history, x="date", y="rank", markers=True,
         labels={"date": "날짜", "rank": "순위"},
@@ -440,7 +458,10 @@ def main() -> None:
         picked_ticker = picked.split("(")[-1].rstrip(")")
         selected = df.loc[df["ticker"] == picked_ticker].iloc[0]
         render_score_breakdown(selected, weights)
-        render_ticker_score_trend(load_history(), picked_ticker, selected["name"])
+
+        qual_subtotal = sum(selected[k] for k in QUAL_ITEMS)  # 기본 가중치(1.0) 기준 정성 소계
+        qual_evaluated = picked_ticker in db.load_all_qual_scores()  # 정성평가 테이블에 행이 있어야 "입력됨"
+        render_ticker_score_trend(load_history(), picked_ticker, selected["name"], qual_subtotal, qual_evaluated)
 
     st.divider()
     st.subheader("일별 TOP 20 순위 변화")
