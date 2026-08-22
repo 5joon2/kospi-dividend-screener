@@ -1,0 +1,46 @@
+name: Update US quant scores
+
+on:
+  schedule:
+    # 매일 01:30 UTC ≈ 미국 동부시간 장 마감(16:00 ET) + 애프터마켓 정산 여유 후.
+    # GitHub Actions cron은 UTC 고정이라 서머타임(EDT/EST) 전환 시 실제 미국 시간
+    # 기준으로 최대 1시간 밀릴 수 있음 — 감수 중 (TODO: DST 대응 cron 분리 검토).
+    - cron: "30 1 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Health check (yfinance/SEC EDGAR/Supabase)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: uv run pipeline/health_check_us.py
+
+      - name: Refresh S&P 500 ticker list
+        run: uv run pipeline/fetch_sp500_tickers.py
+
+      - name: Run US pipeline
+        run: uv run pipeline/run_pipeline_us.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/sp500_tickers.csv data/us_scores_quant.csv data/us_score_history.csv
+          git diff --cached --quiet && echo "변경 없음" || git commit -m "chore: 미국 일일 점수 데이터 갱신"
+          git push

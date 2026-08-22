@@ -56,6 +56,15 @@ create table qual_scores (
   editor text,
   updated_at timestamptz not null default now()
 );
+
+-- Supabase는 새 테이블에 기본으로 RLS(Row Level Security)를 켜두는데, 정책을 따로
+-- 안 만들면 anon key로는 읽기/쓰기 전부 막힘(에러 42501). 우리 앱은 서버 없이 브라우저에서
+-- anon key로 직접 Supabase에 접속하는 구조라 정책을 세밀하게 짜는 대신 RLS 자체를 끔.
+-- 트레이드오프: anon key를 가진 사람은 누구나 이 두 테이블에 직접 쓸 수 있음(정성평가
+-- 페이지의 공유 비밀번호를 우회 가능). 원래도 "진짜 로그인"이 아니라 페이지 단 비밀번호로만
+-- 막는 구조였고, 저장 데이터도 종목 점수/의견 수준이라 민감하지 않아 감수하기로 함(2026-08-05).
+alter table presets disable row level security;
+alter table qual_scores disable row level security;
 ```
 
 ## 실데이터 파이프라인 실행 전 준비
@@ -176,3 +185,85 @@ PER/PBR을 안 주고 DART 배당 공시 방식도 달라, 자동 채점하면 �
   `tsstkAqDecsn.json`으로 대체). 필요해지면 report_nm 텍스트 매칭으로 다시 구현할 것.
 - "소각 비율"(cancel_ratio_pct)은 실제 소각 여부를 확인할 방법이 없어 자기주식취득
   결정 규모로 근사 중 — 매입해도 소각 안 하는 경우 과대추정 가능성 있음.
+
+## 미국(S&P 500) 대시보드
+
+같은 채점 로직(`pipeline/scoring.py`, 완전히 동일)을 S&P 500에 적용한 별도 대시보드.
+새 레포로 안 만들고 이 레포에 그대로 추가함 — `scoring.py`를 그대로 import해서 재사용할 수
+있고, Streamlit Community Cloud는 한 레포에서 진입 파일만 다르게 지정하면 여러 앱을 독립
+배포할 수 있기 때문(2026-08-22 결정).
+
+```
+GitHub Actions(매일, 평일) → pipeline/run_pipeline_us.py
+    (fetch_yfinance.py: 시세/PER/PBR/배당이력, fetch_sec_edgar.py: 자사주 관련 XBRL 공시)
+    → pipeline/scoring.py로 채점(KOSPI와 동일 함수) → data/us_scores_quant.csv 커밋
+
+Streamlit Community Cloud → dashboard_us/app_us.py (별도 앱으로 배포, main file path만 다름)
+    → dashboard/db.py를 그대로 재사용(market="us" 파라미터로 테이블만 분리)
+```
+
+`dashboard_us/`를 `dashboard/`와 별도 폴더로 둔 이유: Streamlit은 진입 스크립트와 같은
+폴더의 `pages/`를 자동으로 사이드바에 붙이는데, 같은 폴더에 두면 KOSPI판 페이지가 미국판
+사이드바에도 섞여 나옴 — 그래서 `dashboard_us/pages/`를 따로 두되, `db.py`/`scoring.py`는
+경로만 추가해서 그대로 재사용(중복 구현 아님).
+
+### 데이터 소스 (둘 다 API 키 불필요)
+- **yfinance**: 현재가/PER/PBR/배당지급이력 (`pipeline/fetch_yfinance.py`)
+- **SEC EDGAR XBRL companyfacts API**: 자사주 관련 항목 (`pipeline/fetch_sec_edgar.py`) —
+  DART처럼 실주식수 기준 공식 규제 데이터. User-Agent에 `http`로 시작하는 문자열(URL)이
+  들어가면 SEC WAF가 403으로 차단하는 것 확인(2026-08-22 실키 테스트) — "이름 + 이메일"
+  형식만 통과됨. 환경변수 `SEC_USER_AGENT`로 커스터마이즈 가능, 기본값은 예시용 더미 이메일.
+
+### 실데이터 파이프라인 실행 전 준비
+1. S&P 500 티커 목록 생성: `uv run pipeline/fetch_sp500_tickers.py` → `data/sp500_tickers.csv`
+   (위키피디아 "List of S&P 500 companies" 표 사용, CIK도 이 표에서 같이 가져옴)
+2. (선택) `SEC_USER_AGENT` 환경변수에 실제 연락 가능한 이메일 설정.
+3. (선택이지만 권장) `uv run pipeline/health_check_us.py` — yfinance/SEC EDGAR/위키 티커
+   소스/Supabase 4곳 확인.
+4. `uv run pipeline/run_pipeline_us.py` (mock 아님) 실행.
+
+### Supabase 테이블 추가 생성 (최초 1회, SQL Editor에서 실행)
+KOSPI판과 같은 닉네임을 미국판에서도 그대로 쓰면 가중치 프리셋이 서로 덮어써지는 문제가
+있어(2026-08-22 결정), `presets`/`qual_scores`와 완전히 같은 구조로 테이블을 따로 둠 —
+`dashboard/db.py`가 `market="us"`를 받으면 자동으로 이 테이블들을 씀.
+
+```sql
+create table us_presets (
+  nickname text primary key,
+  weights jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+create table us_qual_scores (
+  ticker text primary key,
+  profit_sustainable boolean,
+  growth_potential text,
+  management text,
+  global_brand boolean,
+  editor text,
+  updated_at timestamptz not null default now()
+);
+
+alter table us_presets disable row level security;
+alter table us_qual_scores disable row level security;
+```
+
+### Streamlit Community Cloud 배포
+KOSPI판과 완전히 같은 레포에서 "New app"을 한 번 더 만들면 됨. main file path만
+`dashboard_us/app_us.py`로 지정. Secrets는 `SUPABASE_URL`/`SUPABASE_ANON_KEY`/
+`QUAL_EDIT_PASSWORD` 그대로 재사용(같은 Supabase 프로젝트, 테이블만 다름).
+
+### KOSPI판 대비 타협 사항 (TODO — 대시보드 "채점기준표" 페이지에도 표로 정리돼 있음)
+
+| 항목 | KOSPI(DART/KIS) | 미국(yfinance/SEC EDGAR) | 타협 내용 |
+|---|---|---|---|
+| PER/PBR | KIS 실시간 시세 API(증권사 공식값) | yfinance `.info`(야후 자체 계산, 결측 잦음) | 결측 시 0점 처리. **TODO**: 결측률 높으면 유료 API(FMP 등) 폴백 검토 |
+| 배당수익률 | DART 배당금 ÷ KIS 현재가 | 최근 12개월 yfinance 배당이력 합계 ÷ 현재가 | 로직은 동등, 타협 아님 |
+| 배당 연속 인상 연수 | DART 회계연도별 사업보고서 비교 | yfinance 배당이력을 캘린더 연도로 합산해 비교, 진행 중인 올해는 비교에서 제외 | 완전히 같은 기준은 아니지만 신뢰도 유사. (2026-08-22: 올해를 포함시켰다가 애플이 0년으로 오판되는 버그를 실키 테스트로 발견해 수정함) |
+| **중복상장(자회사 상장) 여부** | DART 타법인출자현황 + 지주회사 업종코드로 정밀 판정 | 무료로 판정할 데이터 소스 없음 | **평가 자체를 생략, 항상 단독상장(만점) 처리.** TODO: 필요해지면 수작업 큐레이션 목록으로 대체 |
+| **자사주 정기매입 여부 / 소각비율** | DART 자기주식취득결정 공시(주식수 기반) | SEC EDGAR XBRL `TreasuryStockSharesAcquired` 계열 (주식수 기반, 공식 규제 데이터) | 데이터 소스 정밀도는 DART급이지만, 미국은 매입 즉시 발행주식을 상각(retire)하는 관행이 흔함 — 애플 실키 테스트에서 `TreasuryStockSharesAcquired`/`TreasuryStockCommonShares` 태그 자체가 없고 `StockRepurchasedAndRetiredDuringPeriodShares`만 존재하는 걸 확인(2026-08-22), 이 태그를 폴백으로 추가함. 다른 회사가 또 다른 태그명을 쓸 가능성은 남아있음 — **TODO: 실데이터 전체 실행 후 결측/근사 비율 검증** |
+| **자사주 보유비율** | DART 주식총수 현황(정확값) | SEC EDGAR XBRL `TreasuryStockCommonShares` ÷ `CommonStockSharesIssued` | 매입 즉시 소각하는 회사는 태그 자체가 없어 0%(만점) 처리됨 — 이건 결측이 아니라 실제로 맞는 값(회사가 자사주를 안 쌓아두니까). 다만 태그가 있는데 데이터 자체가 이상해서 0인 경우와 구분이 안 됨 — **TODO: 전체 실행 후 결측 vs 실제값 비율 확인** |
+| 종목 제외(REIT 등) | 수동 티커 목록(`exclusions.py`) | 위키 GICS Sector="Real Estate" 자동 제외(`us_exclusions.py`) | 자동화라 더 편함. ETF/BDC 등 GICS로 안 걸러지는 예외는 **TODO**: 수작업 확인 필요 |
+| 최근 배당일 표기 | KIS 배당기준일/지급일 둘 다 제공 | yfinance는 배당락일만 제공 | 배당기준일/지급일 구분 없이 배당락일만 표시 |
+| 스케줄(cron) | KST 고정(한국은 DST 없음) | ET 기준 UTC 고정 cron(01:30 UTC) | 미국 서머타임 전환 시 실행 시각이 실제 미국 시간 기준 최대 1시간 밀림. **TODO**: DST 대응 cron 분리 여부 검토 |
+| 가중치 프리셋 저장 | `presets`/`qual_scores` 테이블 | `us_presets`/`us_qual_scores` 테이블(위 SQL 참고) | 같은 닉네임이어도 KOSPI판과 안 섞임 |
