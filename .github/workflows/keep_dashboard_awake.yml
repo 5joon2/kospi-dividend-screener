@@ -1,0 +1,26 @@
+name: Keep dashboard awake
+
+on:
+  schedule:
+    # 매일 22:00 UTC = 한국시간 07:00. Streamlit Community Cloud는 일정 기간 접속이
+    # 없으면 앱을 슬립시키는데, 매일 접속해 슬립을 방지한다(주말 포함, 무료 티어 범위 내).
+    - cron: "0 22 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Ping dashboard
+        env:
+          STREAMLIT_APP_URL: "https://kospi-dividend-screener-xxvxn92xl2funlzgw9f3ec.streamlit.app/"
+        run: python pipeline/ping_dashboard.py
