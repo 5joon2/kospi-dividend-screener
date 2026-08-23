@@ -20,7 +20,12 @@ jobs:
       - name: Install requests
         run: pip install requests
 
-      - name: Ping dashboard
+      - name: Ping dashboard (KOSPI)
         env:
           STREAMLIT_APP_URL: "https://kospi-dividend-screener-xxvxn92xl2funlzgw9f3ec.streamlit.app/"
+        run: python pipeline/ping_dashboard.py
+
+      - name: Ping dashboard (US)
+        env:
+          STREAMLIT_APP_URL: "https://kospi-dividend-screener-us.streamlit.app/"
         run: python pipeline/ping_dashboard.py
