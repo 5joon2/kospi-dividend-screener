@@ -68,6 +68,12 @@ QUANT_RAW_DISPLAY = {
     "score_cancel_ratio": ("소각 비율(근사치)", "cancel_ratio_pct", lambda v: f"{v:.2f}%"),
     "score_treasury_ratio": ("자사주 보유 비율", "treasury_ratio_pct", lambda v: f"{v:.2f}%"),
 }
+# SEC EDGAR 3중 교차검증(이상치 판정)에 걸린 항목은 원래 표시 대신 경고로 대체
+# (2026-08-22, LRCX 자사주비율 136% 이상치 발견 후 추가 — fetch_sec_edgar.py 참고).
+SUSPECT_FLAG_COLUMNS = {
+    "score_treasury_ratio": "treasury_ratio_suspect",
+    "score_cancel_ratio": "cancel_ratio_suspect",
+}
 QUAL_RAW_DISPLAY = {
     "score_profit_sustainability": ("이익 지속가능성", "profit_sustainable", lambda v: "예" if v else "아니요/미입력"),
     "score_growth_potential": ("미래 성장 잠재력", "growth_potential", lambda v: v or "미입력"),
@@ -183,7 +189,11 @@ def render_score_breakdown(row: pd.Series, weights: dict[str, float]) -> None:
     lines = ["| 항목 | 원본 데이터 | 배점 | 가중치 | 반영 점수 |", "|---|---|---|---|---|"]
 
     for score_key, (label, raw_key, fmt) in QUANT_RAW_DISPLAY.items():
-        raw_display = fmt(row[raw_key])
+        suspect_col = SUSPECT_FLAG_COLUMNS.get(score_key)
+        if suspect_col and row.get(suspect_col):
+            raw_display = "⚠️ 이상치 의심(데이터 신뢰 불가 — data_quality_notes 컬럼 참고)"
+        else:
+            raw_display = fmt(row[raw_key])
         score = row[score_key]
         weight = weights.get(score_key, 1.0)
         lines.append(f"| {label} | {raw_display} | {score}점 | ×{weight:.1f} | {score * weight:.1f} |")
@@ -259,6 +269,14 @@ def main() -> None:
     if "market_cap" not in quant_df.columns:
         quant_df["market_cap"] = 0
     quant_df["gics_sector"] = quant_df["gics_sector"].fillna("미분류")
+
+    # 이상치 검증 컬럼 추가 전 실행분과의 호환용 (2026-08-22 이전 CSV)
+    for col in ("treasury_ratio_suspect", "cancel_ratio_suspect"):
+        if col not in quant_df.columns:
+            quant_df[col] = False
+        quant_df[col] = quant_df[col].fillna(False)
+    if "data_quality_notes" not in quant_df.columns:
+        quant_df["data_quality_notes"] = ""
 
     market_cap_rank = quant_df["market_cap"].rank(ascending=False, method="first")
     # bins는 반드시 단조증가해야 해서(pd.cut 제약), 종목 수가 100/300보다 적은
@@ -342,12 +360,16 @@ def main() -> None:
     df["PBR 상대값 표시"] = df["pbr_상대값"].apply(
         lambda v: f"{v:+.0f}%" if pd.notna(v) else "-"
     )
+    df["데이터 이상치 표시"] = df.apply(
+        lambda r: "⚠️" if r["treasury_ratio_suspect"] or r["cancel_ratio_suspect"] else "", axis=1
+    )
 
     compact_cols = {
         "순위": "순위",
         "종목명": "종목명",
         "weighted_total": "총점(가중치 반영)",
         "배당수익률 표시": "배당수익률(%)",
+        "데이터 이상치 표시": "⚠️",
     }
     extra_cols = {
         "ticker": "티커",
@@ -361,6 +383,7 @@ def main() -> None:
         "시가총액 표시": "시가총액",
         "규모구분": "기업 규모",
         "recent_dividend_record_date": "최근 배당락일",
+        "data_quality_notes": "데이터 이상치 상세",
     }
 
     show_all_cols = st.toggle(
@@ -397,12 +420,19 @@ def main() -> None:
                 help="같은 GICS 섹터 종목들의 PBR 중앙값과 비교한 값. -30%면 섹터 내 상대적 저평가."
             ),
             "시가총액": st.column_config.Column(help="yfinance 기준 오늘자 시가총액 (billion USD)."),
+            "⚠️": st.column_config.Column(
+                help="자사주 보유비율/소각비율이 SEC EDGAR 3중 교차검증(논리적 상한, 회계항등식, "
+                "시계열 급변)에 걸린 종목 — 해당 항목은 최저점 처리됐고, '전체 컬럼 보기'를 켜면 "
+                "'데이터 이상치 상세' 컬럼에서 사유를 볼 수 있어요."
+            ),
         },
     )
 
+    suspect_count = int((df["treasury_ratio_suspect"] | df["cancel_ratio_suspect"]).sum())
     st.caption(
         f"총 {len(df)}개 종목 · 대형/중형/소형주 각각 정량 데이터 기준 상위 {TOP_N_FOR_QUAL}개씩"
         f"(최대 {TOP_N_FOR_QUAL * 3}개)만 '정성평가 입력' 페이지에서 사람이 직접 점수를 넣을 수 있습니다."
+        + (f" · ⚠️ 데이터 이상치 의심 {suspect_count}개 종목(자사주 관련 항목 최저점 처리됨)" if suspect_count else "")
     )
 
     st.divider()

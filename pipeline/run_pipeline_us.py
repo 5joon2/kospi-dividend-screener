@@ -38,6 +38,8 @@ FIELDNAMES = [
     "quant_subtotal",
     # 채점과 무관한 참고 정보 (필터/탐색용)
     "gics_sector", "market_cap", "recent_dividend_record_date", "recent_dividend_pay_date",
+    # SEC EDGAR 자사주 데이터 3중 교차검증 결과 (2026-08-22 추가, README/채점기준표 페이지 참고)
+    "treasury_ratio_suspect", "cancel_ratio_suspect", "data_quality_notes",
 ]
 
 MOCK_UNIVERSE = [
@@ -123,9 +125,19 @@ def fetch_live_quant(yfinance_ticker: str, cik: str, gics_sector: str = "") -> t
     treasury_ratio = 0.0
     buyback_regular = False
     cancel_ratio = 0.0
+    quality_notes: list[str] = []
+    treasury_suspect = False
+    cancel_suspect = False
     if cik:
-        treasury_ratio = sec_client.treasury_ratio_pct(cik) or 0.0
-        buyback_regular, cancel_ratio = sec_client.buyback_regular_and_cancel_ratio(cik)
+        tcheck = sec_client.treasury_ratio_pct(cik)
+        treasury_ratio = tcheck.value
+        treasury_suspect = tcheck.suspect
+        if tcheck.suspect:
+            quality_notes.append(f"자사주비율: {'; '.join(tcheck.notes)} (원계산치 {tcheck.raw_ratio}%)")
+
+        buyback_regular, cancel_ratio, cancel_suspect, cancel_notes = sec_client.buyback_regular_and_cancel_ratio(cik)
+        if cancel_suspect:
+            quality_notes.append(f"소각비율: {'; '.join(cancel_notes)}")
 
     extra = {
         "gics_sector": gics_sector,
@@ -135,6 +147,11 @@ def fetch_live_quant(yfinance_ticker: str, cik: str, gics_sector: str = "") -> t
         # 그대로 record_date 자리에만 넣고 pay_date는 비워둠 (TODO: 필요하면 별도 소스로 보강).
         "recent_dividend_record_date": dividends.index[-1].date().isoformat() if not dividends.empty else "",
         "recent_dividend_pay_date": "",
+        # 자사주 관련 3중 교차검증(2026-08-22, LRCX 이상치 발견 후 추가) 결과 —
+        # fetch_sec_edgar.py의 treasury_ratio_pct()/buyback_regular_and_cancel_ratio() 참고.
+        "treasury_ratio_suspect": treasury_suspect,
+        "cancel_ratio_suspect": cancel_suspect,
+        "data_quality_notes": " / ".join(quality_notes),
     }
 
     return QuantInput(
@@ -182,6 +199,9 @@ def _build_row(ticker: str, name: str, quant: QuantInput, extra: dict) -> dict:
         "market_cap": extra.get("market_cap") or 0,
         "recent_dividend_record_date": extra.get("recent_dividend_record_date", ""),
         "recent_dividend_pay_date": extra.get("recent_dividend_pay_date", ""),
+        "treasury_ratio_suspect": extra.get("treasury_ratio_suspect", False),
+        "cancel_ratio_suspect": extra.get("cancel_ratio_suspect", False),
+        "data_quality_notes": extra.get("data_quality_notes", ""),
     }
 
 
