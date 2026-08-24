@@ -6,9 +6,13 @@ requires-python = ">=3.12"
 dependencies = [
     "dart-fss>=0.4.17",
     "pandas>=3.0.5",
+    "playwright>=1.62.0",
     "plotly>=6.9.0",
     "requests>=2.34.2",
     "streamlit>=1.60.0",
     "supabase>=2.31.0",
     "yfinance>=1.6.0",
 ]
+
+[dependency-groups]
+dev = []

@@ -4,6 +4,11 @@ on:
   schedule:
     # 매일 22:00 UTC = 한국시간 07:00. Streamlit Community Cloud는 일정 기간 접속이
     # 없으면 앱을 슬립시키는데, 매일 접속해 슬립을 방지한다(주말 포함, 무료 티어 범위 내).
+    #
+    # 하루 1번으로 부족하면(2026-08-24, 하루 만에 두 앱 다 슬립된 것 확인됨) 여기
+    # cron을 더 촘촘하게(예: 6시간마다 "0 */6 * * *") 바꿀 것 — Playwright 브라우저
+    # 설치 때문에 매번 실행이 좀 걸리지만(약 1분), 퍼블릭 레포라 Actions 분당 비용은
+    # 여전히 무료.
     - cron: "0 22 * * *"
   workflow_dispatch: {}
 
@@ -13,19 +18,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: "3.12"
+          version: "latest"
 
-      - name: Install requests
-        run: pip install requests
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Install Playwright browser
+        run: uv run playwright install --with-deps chromium
 
       - name: Ping dashboard (KOSPI)
         env:
           STREAMLIT_APP_URL: "https://kospi-dividend-screener-xxvxn92xl2funlzgw9f3ec.streamlit.app/"
-        run: python pipeline/ping_dashboard.py
+        run: uv run pipeline/ping_dashboard.py
 
       - name: Ping dashboard (US)
         env:
           STREAMLIT_APP_URL: "https://kospi-dividend-screener-us.streamlit.app/"
-        run: python pipeline/ping_dashboard.py
+        run: uv run pipeline/ping_dashboard.py
