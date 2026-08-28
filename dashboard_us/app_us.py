@@ -437,7 +437,15 @@ def main() -> None:
 
     st.divider()
     st.subheader("섹터 분포")
-    top_n_for_chart = st.slider("상위 몇 개 종목의 섹터 분포를 볼까요?", 5, min(100, len(df)), min(20, len(df)))
+    # 필터를 좁게 걸어(예: 배당수익률 최소치를 높게) 종목이 5개 미만으로 줄면
+    # st.slider(min_value=5, max_value<5)가 되어 크래시함(2026-08-28, US 대시보드에서
+    # 실제 발견 — KOSPI판 app.py에도 동일한 패턴이 있어 같이 고침). 종목이 적을 땐
+    # 슬라이더 없이 전체를 그냥 보여줌.
+    if len(df) <= 5:
+        top_n_for_chart = len(df)
+        st.caption(f"필터 결과가 {len(df)}개뿐이라 전체를 보여드립니다.")
+    else:
+        top_n_for_chart = st.slider("상위 몇 개 종목의 섹터 분포를 볼까요?", 5, min(100, len(df)), min(20, len(df)))
     chart_source = df.head(top_n_for_chart)["gics_sector"].value_counts().reset_index()
     chart_source.columns = ["섹터", "종목 수"]
     fig_sector = px.pie(chart_source, names="섹터", values="종목 수", hole=0.4)
