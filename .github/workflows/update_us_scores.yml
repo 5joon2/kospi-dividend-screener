@@ -38,9 +38,24 @@ jobs:
         run: uv run pipeline/run_pipeline_us.py
 
       - name: Commit updated data
+        # KOSPI판(update_scores.yml)과 같은 이유로 pull --rebase 후 push 재시도 —
+        # 두 파이프라인 모두 실행 시간이 길어(수십 분~수 시간) 서로 push가 겹칠 수
+        # 있음(2026-08-28, KOSPI판에서 실제로 "non-fast-forward" 거부 발생 확인).
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/sp500_tickers.csv data/us_scores_quant.csv data/us_score_history.csv
-          git diff --cached --quiet && echo "변경 없음" || git commit -m "chore: 미국 일일 점수 데이터 갱신"
-          git push
+          if git diff --cached --quiet; then
+            echo "변경 없음"
+            exit 0
+          fi
+          git commit -m "chore: 미국 일일 점수 데이터 갱신"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push; then
+              exit 0
+            fi
+            echo "push 실패 (${i}/5) — 10초 후 재시도"
+            sleep 10
+          done
+          echo "5회 재시도 후에도 push 실패"
+          exit 1

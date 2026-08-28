@@ -40,9 +40,25 @@ jobs:
         run: uv run pipeline/run_pipeline.py
 
       - name: Commit updated data
+        # 파이프라인 자체가 1~3시간 걸려서(KIS/DART 833종목 순회), 그 사이 다른 워크플로우
+        # (미국판 갱신, 수동 push 등)가 먼저 push해버리면 아래 단순 `git push`가
+        # non-fast-forward로 거부됨(2026-08-28 실제 발생, "! [rejected] main -> main
+        # (fetch first)") — pull --rebase 후 push를 몇 번 재시도해서 경합을 흡수.
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/scores_quant.csv data/score_history.csv
-          git diff --cached --quiet && echo "변경 없음" || git commit -m "chore: 일일 점수 데이터 갱신"
-          git push
+          if git diff --cached --quiet; then
+            echo "변경 없음"
+            exit 0
+          fi
+          git commit -m "chore: 일일 점수 데이터 갱신"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push; then
+              exit 0
+            fi
+            echo "push 실패 (${i}/5) — 10초 후 재시도"
+            sleep 10
+          done
+          echo "5회 재시도 후에도 push 실패"
+          exit 1
