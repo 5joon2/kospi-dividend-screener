@@ -479,3 +479,63 @@ date,size_group,ticker,name,rank,quant_subtotal
 2026-09-01,소형주,FDS,FactSet,18,37
 2026-09-01,소형주,FTV,Fortive,19,37
 2026-09-01,소형주,GIS,General Mills,20,37
+2026-09-02,대형주,AAPL,Apple Inc.,1,42
+2026-09-02,대형주,MSFT,Microsoft,2,42
+2026-09-02,대형주,QCOM,Qualcomm,3,42
+2026-09-02,대형주,WMT,Walmart,4,42
+2026-09-02,대형주,AXP,American Express,5,41
+2026-09-02,대형주,MRVL,Marvell Technology,6,40
+2026-09-02,대형주,AMAT,Applied Materials,7,37
+2026-09-02,대형주,CAT,Caterpillar Inc.,8,37
+2026-09-02,대형주,GS,Goldman Sachs,9,37
+2026-09-02,대형주,KLAC,KLA Corporation,10,37
+2026-09-02,대형주,MS,Morgan Stanley,11,37
+2026-09-02,대형주,PFE,Pfizer,12,37
+2026-09-02,대형주,GE,GE Aerospace,13,36
+2026-09-02,대형주,WDC,Western Digital,14,36
+2026-09-02,대형주,HD,Home Depot (The),15,34
+2026-09-02,대형주,ORCL,Oracle Corporation,16,34
+2026-09-02,대형주,COP,ConocoPhillips,17,32
+2026-09-02,대형주,PM,Philip Morris International,18,32
+2026-09-02,대형주,UBER,Uber,19,32
+2026-09-02,대형주,CB,Chubb Limited,20,29
+2026-09-02,중형주,HON,Honeywell Technologies,1,47
+2026-09-02,중형주,MDT,Medtronic,2,44
+2026-09-02,중형주,ALL,Allstate,3,42
+2026-09-02,중형주,HIG,Hartford (The),4,42
+2026-09-02,중형주,LHX,L3Harris,5,42
+2026-09-02,중형주,MLM,Martin Marietta Materials,6,42
+2026-09-02,중형주,MO,Altria,7,42
+2026-09-02,중형주,CTVA,Corteva,8,41
+2026-09-02,중형주,YUM,Yum! Brands,9,41
+2026-09-02,중형주,AIG,American International Group,10,40
+2026-09-02,중형주,ED,Consolidated Edison,11,40
+2026-09-02,중형주,PEG,Public Service Enterprise Group,12,40
+2026-09-02,중형주,GD,General Dynamics,13,39
+2026-09-02,중형주,TRV,Travelers Companies (The),14,39
+2026-09-02,중형주,UPS,United Parcel Service,15,39
+2026-09-02,중형주,ADP,Automatic Data Processing,16,37
+2026-09-02,중형주,AFL,Aflac,17,37
+2026-09-02,중형주,BNY,BNY Mellon,18,37
+2026-09-02,중형주,CL,Colgate-Palmolive,19,37
+2026-09-02,중형주,DHI,D. R. Horton,20,37
+2026-09-02,소형주,AES,AES Corporation,1,50
+2026-09-02,소형주,SYF,Synchrony Financial,2,46
+2026-09-02,소형주,HPQ,HP Inc.,3,45
+2026-09-02,소형주,AOS,A. O. Smith,4,42
+2026-09-02,소형주,CHTR,Charter Communications,5,42
+2026-09-02,소형주,HII,Huntington Ingalls Industries,6,42
+2026-09-02,소형주,WSM,"Williams-Sonoma, Inc.",7,41
+2026-09-02,소형주,APA,APA Corporation,8,40
+2026-09-02,소형주,LH,Labcorp,9,40
+2026-09-02,소형주,AIZ,Assurant,10,39
+2026-09-02,소형주,TECH,Bio-Techne,11,39
+2026-09-02,소형주,BF.B,Brown–Forman,12,38
+2026-09-02,소형주,MOS,Mosaic Company (The),13,38
+2026-09-02,소형주,BR,Broadridge Financial Solutions,14,37
+2026-09-02,소형주,CFG,Citizens Financial Group,15,37
+2026-09-02,소형주,EIX,Edison International,16,37
+2026-09-02,소형주,EXPD,Expeditors International,17,37
+2026-09-02,소형주,FDS,FactSet,18,37
+2026-09-02,소형주,FTV,Fortive,19,37
+2026-09-02,소형주,GIS,General Mills,20,37
