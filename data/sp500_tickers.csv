@@ -55,13 +55,13 @@ BALL,BALL,Ball Corporation,Materials,0000009389
 BAX,BAX,Baxter International,Health Care,0000010456
 BBY,BBY,Best Buy,Consumer Discretionary,0000764478
 BDX,BDX,Becton Dickinson,Health Care,0000010795
+BE,BE,Bloom Energy,Industrials,0001664703
 BEN,BEN,Franklin Resources,Financials,0000038777
 BF.B,BF-B,Brown–Forman,Consumer Staples,0000014693
 BG,BG,Bunge Global,Consumer Staples,0001996862
 BIIB,BIIB,Biogen,Health Care,0000875045
 BKNG,BKNG,Booking Holdings,Consumer Discretionary,0001075531
 BKR,BKR,Baker Hughes,Energy,0001701605
-BLDR,BLDR,Builders FirstSource,Industrials,0001316835
 BLK,BLK,BlackRock,Financials,0002012383
 BMY,BMY,Bristol Myers Squibb,Health Care,0000014272
 BNY,BNY,BNY Mellon,Financials,0001390777
@@ -242,6 +242,7 @@ ICE,ICE,Intercontinental Exchange,Financials,0001571949
 IDXX,IDXX,Idexx Laboratories,Health Care,0000874716
 IEX,IEX,IDEX Corporation,Industrials,0000832101
 IFF,IFF,International Flavors & Fragrances,Materials,0000051253
+ILMN,ILMN,"Illumina, Inc.",Health Care,0001110803
 INCY,INCY,Incyte,Health Care,0000879169
 INTC,INTC,Intel,Information Technology,0000050863
 INTU,INTU,Intuit,Information Technology,0000896878
@@ -352,6 +353,7 @@ ORCL,ORCL,Oracle Corporation,Information Technology,0001341439
 ORLY,ORLY,O'Reilly Automotive,Consumer Discretionary,0000898173
 OTIS,OTIS,Otis Worldwide,Industrials,0001781335
 OXY,OXY,Occidental Petroleum,Energy,0000797468
+P,P,Everpure,Information Technology,0001474432
 PANW,PANW,Palo Alto Networks,Information Technology,0001327567
 PAYX,PAYX,Paychex,Industrials,0000723531
 PCAR,PCAR,Paccar,Industrials,0000075362
@@ -425,7 +427,6 @@ SYF,SYF,Synchrony Financial,Financials,0001601712
 SYK,SYK,Stryker Corporation,Health Care,0000310764
 SYY,SYY,Sysco,Consumer Staples,0000096021
 T,T,AT&T,Communication Services,0000732717
-TAP,TAP,Molson Coors Beverage Company,Consumer Staples,0000024545
 TDG,TDG,TransDigm Group,Industrials,0001260221
 TDY,TDY,Teledyne Technologies,Information Technology,0001094285
 TECH,TECH,Bio-Techne,Health Care,0000842023
@@ -447,7 +448,6 @@ TSCO,TSCO,Tractor Supply,Consumer Discretionary,0000916365
 TSLA,TSLA,"Tesla, Inc.",Consumer Discretionary,0001318605
 TSN,TSN,Tyson Foods,Consumer Staples,0000100493
 TT,TT,Trane Technologies,Industrials,0001466258
-TTD,TTD,Trade Desk (The),Communication Services,0001671933
 TTWO,TTWO,Take-Two Interactive,Communication Services,0000946581
 TXN,TXN,Texas Instruments,Information Technology,0000097476
 TXT,TXT,Textron,Industrials,0000217346
