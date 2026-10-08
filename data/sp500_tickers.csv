@@ -120,7 +120,6 @@ CSGP,CSGP,CoStar Group,Real Estate,0001057352
 CSX,CSX,CSX Corporation,Industrials,0000277948
 CTAS,CTAS,Cintas,Industrials,0000723254
 CTSH,CTSH,Cognizant,Information Technology,0001058290
-CTVA,CTVA,Corteva,Materials,0001755672
 CVNA,CVNA,Carvana,Consumer Discretionary,0001690820
 CVS,CVS,CVS Health,Health Care,0000064803
 CVX,CVX,Chevron Corporation,Energy,0000093410
@@ -378,7 +377,6 @@ PPG,PPG,PPG Industries,Materials,0000079879
 PPL,PPL,PPL Corporation,Utilities,0000922224
 PRU,PRU,Prudential Financial,Financials,0001137774
 PSA,PSA,Public Storage,Real Estate,0001393311
-PSKY,PSKY,Paramount Skydance Corporation,Communication Services,0002041610
 PSX,PSX,Phillips 66,Energy,0001534701
 PTC,PTC,PTC Inc.,Information Technology,0000857005
 PWR,PWR,Quanta Services,Industrials,0001050915
@@ -405,6 +403,7 @@ SBUX,SBUX,Starbucks,Consumer Discretionary,0000829224
 SCHW,SCHW,Charles Schwab Corporation,Financials,0000316709
 SHW,SHW,Sherwin-Williams,Materials,0000089800
 SJM,SJM,J.M. Smucker Company (The),Consumer Staples,0000091419
+SKYD,SKYD,Paramount Skydance Corporation,Communication Services,0002041610
 SLB,SLB,Schlumberger,Energy,0000087347
 SMCI,SMCI,Supermicro,Information Technology,0001375365
 SNA,SNA,Snap-on,Industrials,0000091440
@@ -449,6 +448,7 @@ TSLA,TSLA,"Tesla, Inc.",Consumer Discretionary,0001318605
 TSN,TSN,Tyson Foods,Consumer Staples,0000100493
 TT,TT,Trane Technologies,Industrials,0001466258
 TTWO,TTWO,Take-Two Interactive,Communication Services,0000946581
+TWLO,TWLO,Twilio,Information Technology,0001447669
 TXN,TXN,Texas Instruments,Information Technology,0000097476
 TXT,TXT,Textron,Industrials,0000217346
 TYL,TYL,Tyler Technologies,Information Technology,0000860731
@@ -476,10 +476,10 @@ VRTX,VRTX,Vertex Pharmaceuticals,Health Care,0000875320
 VST,VST,Vistra Corp.,Utilities,0001692819
 VTR,VTR,Ventas,Real Estate,0000740260
 VTRS,VTRS,Viatris,Health Care,0001792044
+VYLR,VYLR,Vylor,Consumer Staples,0002128626
 VZ,VZ,Verizon,Communication Services,0000732712
 WAB,WAB,Wabtec,Industrials,0000943452
 WAT,WAT,Waters Corporation,Health Care,0001000697
-WBD,WBD,Warner Bros. Discovery,Communication Services,0001437107
 WDAY,WDAY,"Workday, Inc.",Information Technology,0001327811
 WDC,WDC,Western Digital,Information Technology,0000106040
 WEC,WEC,WEC Energy Group,Utilities,0000783325
