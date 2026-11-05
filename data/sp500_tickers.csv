@@ -272,7 +272,6 @@ KMB,KMB,Kimberly-Clark,Consumer Staples,0000055785
 KMI,KMI,Kinder Morgan,Energy,0001506307
 KO,KO,Coca-Cola Company (The),Consumer Staples,0000021344
 KR,KR,Kroger,Consumer Staples,0000056873
-KVUE,KVUE,Kenvue,Consumer Staples,0001944048
 L,L,Loews Corporation,Financials,0000060086
 LDOS,LDOS,Leidos,Industrials,0001336920
 LEN,LEN,Lennar,Consumer Discretionary,0000920760
@@ -346,6 +345,7 @@ NXPI,NXPI,NXP Semiconductors,Information Technology,0001413447
 O,O,Realty Income,Real Estate,0000726728
 ODFL,ODFL,Old Dominion,Industrials,0000878927
 OKE,OKE,Oneok,Energy,0001039684
+OKTA,OKTA,"Okta, Inc.",Information Technology,0001660134
 OMC,OMC,Omnicom Group,Communication Services,0000029989
 ON,ON,ON Semiconductor,Information Technology,0001097864
 ORCL,ORCL,Oracle Corporation,Information Technology,0001341439
